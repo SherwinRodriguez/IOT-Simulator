@@ -1,41 +1,74 @@
 package org.example;
+
 import com.google.gson.Gson;
+import io.github.cdimascio.dotenv.Dotenv;
+
+import java.util.ArrayList;
+import java.util.List;
 
 public class Main {
 
-    private static final int TOTAL_MESSAGES = 180; // for 15 minutes
+    public static void main(String[] args)
+            throws Exception {
 
-    public static void main(String[] args) {
+        Dotenv dotenv = Dotenv.load();
 
-        try {
+        String broker =
+                dotenv.get("MQTT_BROKER");
 
-            Gson gson = new Gson(); //translate Java objects into JSON (serialization and deserialization)
+        List<DeviceConfig> devices =
+                DeviceLoader.loadDevices();
 
-            AgricultureDataGenerator generator =
-                    new AgricultureDataGenerator();
+        List<MqttPublisher> publishers =
+                new ArrayList<>();
 
-            MqttPublisher publisher =
-                    new MqttPublisher();
+        for (DeviceConfig device : devices) {
 
-            for (int i = 1; i <= TOTAL_MESSAGES; i++) {
+            publishers.add(
+                    new MqttPublisher(
+                            broker,
+                            device));
+        }
+
+        AgricultureDataGenerator generator =
+                new AgricultureDataGenerator();
+
+        Gson gson = new Gson();
+
+        for (int i = 1;
+             i <= 180;
+             i++) {
+
+            for (int deviceIndex = 0;
+                 deviceIndex < publishers.size();
+                 deviceIndex++) {
 
                 AgricultureData data =
-                        generator.generate(i);
+                        generator.generate(
+                                i,
+                                deviceIndex);
 
                 String payload =
                         gson.toJson(data);
 
-                publisher.publish(payload);
+                publishers
+                        .get(deviceIndex)
+                        .publish(payload);
 
-                Thread.sleep(5000);
+                System.out.println(
+                        "Device "
+                                + (deviceIndex + 1)
+                                + " -> "
+                                + payload);
             }
 
+            Thread.sleep(5000);
+        }
+
+        for (MqttPublisher publisher :
+                publishers) {
+
             publisher.disconnect();
-
-            System.out.println("Simulation Completed");
-
-        } catch (Exception e) {
-            e.printStackTrace();
         }
     }
 }

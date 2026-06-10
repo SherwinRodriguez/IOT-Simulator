@@ -1,52 +1,56 @@
 package org.example;
 
-import org.eclipse.paho.client.mqttv3.*; //Eclipse Paho Java Client library
+import org.eclipse.paho.client.mqttv3.*;
 
 public class MqttPublisher {
 
-    private static final String BROKER =
-            "tcp://60863cfqlp.zohoiothub.in:1883";
-
-    private static final String CLIENT_ID =
-            "8352000000181345";
-
-    private static final String USERNAME =
-            "/60863cfqlp.zohoiothub.in/v1/devices/8352000000181345/connect";
-
-    private static final String PASSWORD =
-            "<YOUR_PASSWORD>";
-
-    private static final String TOPIC =
-            "/devices/8352000000181345/telemetry";
-
     private final MqttClient client;
+    private final DeviceConfig config;
 
-    public MqttPublisher() throws Exception {
+    public MqttPublisher(
+            String broker,
+            DeviceConfig config) throws Exception {
 
-        client = new MqttClient(BROKER, CLIENT_ID);
+        this.config = config;
 
-        MqttConnectOptions options = new MqttConnectOptions();
-        options.setUserName(USERNAME);
-        options.setPassword(PASSWORD.toCharArray());
+        client = new MqttClient(
+                broker,
+                config.getClientId());
+
+        MqttConnectOptions options =
+                new MqttConnectOptions();
+
+        options.setUserName(
+                config.getUsername());
+
+        options.setPassword(
+                config.getToken().toCharArray());
+
         options.setCleanSession(true);
 
         client.connect(options);
 
-        System.out.println("Connected to Zoho IoT");
+        System.out.println(
+                config.getClientId()
+                        + " connected");
     }
 
-    public void publish(String payload) throws Exception {
+    public void publish(String payload)
+            throws Exception {
 
-        MqttMessage message = new MqttMessage();
-        message.setPayload(payload.getBytes());
+        MqttMessage message =
+                new MqttMessage(
+                        payload.getBytes());
+
         message.setQos(1);
 
-        client.publish(TOPIC, message);
-
-        System.out.println("Published: " + payload);
+        client.publish(
+                config.getTopic(),
+                message);
     }
 
-    public void disconnect() throws Exception {
+    public void disconnect()
+            throws Exception {
 
         if (client.isConnected()) {
             client.disconnect();
