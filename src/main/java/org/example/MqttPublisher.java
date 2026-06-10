@@ -14,7 +14,7 @@ public class MqttPublisher {
             "/60863cfqlp.zohoiothub.in/v1/devices/8352000000181345/connect";
 
     private static final String PASSWORD =
-            <YOUR_PASSWORD>;
+            "<YOUR_PASSWORD>";
 
     private static final String TOPIC =
             "/devices/8352000000181345/telemetry";
