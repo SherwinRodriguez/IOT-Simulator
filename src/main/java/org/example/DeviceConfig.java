@@ -1,21 +1,42 @@
 package org.example;
 
-public class DeviceConfig {
+import java.util.Map;
 
+public class DeviceConfig {
+    private String name;
     private String clientId;
     private String username;
     private String token;
     private String topic;
+    private int interval;
 
-    public DeviceConfig(String clientId,
+    private Map<String,SensorConfig> sensors;
+
+    public Map<String, SensorConfig> getSensors() {
+        return sensors;
+    }
+    public void setSensors(
+            Map<String, SensorConfig> sensors) {
+        this.sensors = sensors;
+    }
+
+    public DeviceConfig(String name,
+                        String clientId,
                         String username,
                         String token,
-                        String topic) {
+                        String topic,
+                        int interval) {
 
+        this.name = name;
         this.clientId = clientId;
         this.username = username;
         this.token = token;
         this.topic = topic;
+        this.interval = interval;
+    }
+
+    public String getName() {
+        return name;
     }
 
     public String getClientId() {
@@ -32,5 +53,9 @@ public class DeviceConfig {
 
     public String getTopic() {
         return topic;
+    }
+
+    public int getInterval() {
+        return interval;
     }
 }

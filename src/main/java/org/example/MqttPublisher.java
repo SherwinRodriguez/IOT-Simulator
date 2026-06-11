@@ -25,13 +25,12 @@ public class MqttPublisher {
 
         options.setPassword(
                 config.getToken().toCharArray());
-
         options.setCleanSession(true);
 
         client.connect(options);
 
         System.out.println(
-                config.getClientId()
+                config.getName()
                         + " connected");
     }
 

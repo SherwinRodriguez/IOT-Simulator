@@ -1,45 +1,38 @@
 package org.example;
 
-import java.util.concurrent.ThreadLocalRandom;
+import java.util.Map;
 
 public class AgricultureDataGenerator {
 
-    public AgricultureData generate(int iteration,int deviceIndex) {
+    public AgricultureData generate(DeviceConfig device) {
 
-        double progress = (double) iteration / 180.0;
-        double deviceOffset = deviceIndex*2;
+        Map<String, SensorConfig> sensors =
+                device.getSensors();
 
         double temperature =
-                24
-                        +deviceOffset
-                        + (11 * progress)
-                        + Math.sin(iteration / 8.0) * 1.5
-                        + random(-0.4, 0.4);
+                sensors.get("temperature")
+                        .getPattern()
+                        .nextValue();
 
         double humidity =
-                85
-                        -deviceOffset
-                        - (30 * progress)
-                        - Math.sin(iteration / 8.0) * 2
-                        + random(-2, 2);
+                sensors.get("humidity")
+                        .getPattern()
+                        .nextValue();
 
         double lightLevel =
-                200     +deviceOffset
-                        + (800 * progress)
-                        + Math.sin(iteration / 5.0) * 100
-                        + random(-30, 30);
+                sensors.get("light_level")
+                        .getPattern()
+                        .nextValue();
 
         double soilMoisture =
-                80
-                        -deviceOffset
-                        - (30 * progress)
-                        + random(-1.5, 1.5);
+                sensors.get("soil_moisture")
+                        .getPattern()
+                        .nextValue();
 
         double electricalConductivity =
-                1.8
-                        +deviceOffset
-                        + (0.6 * progress)
-                        + random(-0.05, 0.05);
+                sensors.get("electrical_conductivity")
+                        .getPattern()
+                        .nextValue();
 
         return new AgricultureData(
                 round(temperature),
@@ -50,9 +43,6 @@ public class AgricultureDataGenerator {
         );
     }
 
-    private double random(double min, double max) {
-        return ThreadLocalRandom.current().nextDouble(min, max);
-    }
 
     private double round(double value) {
         return Math.round(value * 100.0) / 100.0;

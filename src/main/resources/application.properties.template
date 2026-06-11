@@ -1,0 +1,35 @@
+#device count
+device.count=
+
+#DATAPOINTS
+data.points=YOUR DATA POINTS
+
+#Borker
+mqtt.broker= BROKER
+
+#ADD DEVICE
+device.N.name= YOUR DEVICE NAME
+device.N.clientId= YOUR CLIENT ID
+device.N.username= YOUR USER-NAME
+device.N.token= YOUR TOKEN
+device.N.topic= YOUR TOPIC
+
+device.N.interval=5000
+
+# EXAMPLE DATAPOINTS DEVICE-N
+device.N.temperature.min=20
+device.N.temperature.max=40
+device.N.temperature.start=22
+device.N.temperature.step=0.7
+device.N.temperature.pattern=INCREMENTAL
+
+device.N.humidity.min=40
+device.N.humidity.max=90
+device.N.humidity.pattern=RANDOM
+
+device.N.light_level.min=100
+device.N.light_level.max=1000
+device.N.light_level.start=935
+device.N.light_level.step=3.4
+device.N.light_level.pattern=DECREMENTAL
+
