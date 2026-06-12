@@ -1,11 +1,17 @@
 package org.example;
 
+import org.example.config.DeviceConfig;
+import org.example.loader.DeviceLoader;
+import org.example.loader.PropertyLoader;
+import org.example.simulator.DeviceSimulator;
+
 import java.util.List;
 
 public class Main {
 
     public static void main(String[] args) {
 
+        //MQTT PROVIDER - BROKER
         String broker =
                 PropertyLoader.get(
                         "mqtt.broker");

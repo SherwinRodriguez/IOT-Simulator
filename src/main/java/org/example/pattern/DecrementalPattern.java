@@ -1,7 +1,5 @@
 package org.example.pattern;
 
-import org.example.ValuePattern;
-
 public class DecrementalPattern implements ValuePattern {
     private double currentValue;
     private double stepValue;

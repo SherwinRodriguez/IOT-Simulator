@@ -1,4 +1,4 @@
-package org.example;
+package org.example.pattern;
 
 public interface ValuePattern {
     double nextValue();

@@ -1,7 +1,6 @@
 package org.example.pattern;
 
-import org.example.SensorConfig;
-import org.example.ValuePattern;
+import org.example.config.SensorConfig;
 
 public class PatternFactory {
 

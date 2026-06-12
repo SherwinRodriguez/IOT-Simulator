@@ -1,19 +1,20 @@
-package org.example;
+package org.example.mqtt;
 
 import org.eclipse.paho.client.mqttv3.*;
+import org.example.config.DeviceConfig;
 
 public class MqttPublisher {
 
-    private final MqttClient client;
-    private final DeviceConfig config;
+    private final MqttClient mqttClient;
+    private final DeviceConfig deviceConfig;
 
     public MqttPublisher(
             String broker,
             DeviceConfig config) throws Exception {
 
-        this.config = config;
+        this.deviceConfig = config;
 
-        client = new MqttClient(
+        mqttClient = new MqttClient(
                 broker,
                 config.getClientId());
 
@@ -27,7 +28,7 @@ public class MqttPublisher {
                 config.getToken().toCharArray());
         options.setCleanSession(true);
 
-        client.connect(options);
+        mqttClient.connect(options);
 
         System.out.println(
                 config.getName()
@@ -43,18 +44,18 @@ public class MqttPublisher {
 
         message.setQos(1);
 
-        client.publish(
-                config.getTopic(),
+        mqttClient.publish(
+                deviceConfig.getTopic(),
                 message);
     }
 
     public void disconnect()
             throws Exception {
 
-        if (client.isConnected()) {
-            client.disconnect();
+        if (mqttClient.isConnected()) {
+            mqttClient.disconnect();
         }
 
-        client.close();
+        mqttClient.close();
     }
 }

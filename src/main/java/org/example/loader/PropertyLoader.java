@@ -1,6 +1,4 @@
-package org.example;
-
-import java.io.IOException;
+package org.example.loader;
 import java.io.InputStream;
 import java.util.Properties;
 

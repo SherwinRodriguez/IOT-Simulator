@@ -1,7 +1,5 @@
 package org.example.pattern;
 
-import org.example.ValuePattern;
-
 import java.util.concurrent.ThreadLocalRandom;
 
 public class RandomPattern

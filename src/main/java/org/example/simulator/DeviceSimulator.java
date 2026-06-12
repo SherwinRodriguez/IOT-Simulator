@@ -1,12 +1,17 @@
-package org.example;
+package org.example.simulator;
 
 import com.google.gson.Gson;
+import org.example.config.DeviceConfig;
+import org.example.mqtt.MqttPublisher;
 
-public class DeviceSimulator implements Runnable {
+import java.util.Map;
+
+public class DeviceSimulator
+        implements Runnable {
 
     private final DeviceConfig device;
     private final MqttPublisher publisher;
-    private final AgricultureDataGenerator generator;
+    private final AgricultureDataGenerator dataGenerator;
     private final Gson gson;
 
     public DeviceSimulator(
@@ -14,19 +19,24 @@ public class DeviceSimulator implements Runnable {
             String broker) {
 
         this.device = device;
+
         try {
+
             this.publisher =
                     new MqttPublisher(
                             broker,
                             device);
-        }  catch (Exception e) {
+
+        } catch (Exception e) {
+
             throw new RuntimeException(e);
         }
 
-        this.generator =
+        this.dataGenerator =
                 new AgricultureDataGenerator();
 
-        this.gson = new Gson();
+        this.gson =
+                new Gson();
     }
 
     @Override
@@ -34,26 +44,27 @@ public class DeviceSimulator implements Runnable {
 
         try {
 
-            while (true) {
+            while (!Thread.currentThread()
+                    .isInterrupted()) {
 
-                AgricultureData data =
-                        generator.generate(
+                Map<String, Double> telemetry =
+                        dataGenerator.generate(
                                 device);
 
                 String payload =
-                        gson.toJson(data);
+                        gson.toJson(
+                                telemetry);
 
-                publisher.publish(payload);
+                publisher.publish(
+                        payload);
 
                 System.out.println(
-                        Thread.currentThread()
-                                .getName()
+                        device.getName()
                                 + " -> "
                                 + payload);
 
                 Thread.sleep(
                         device.getInterval());
-
             }
 
         } catch (Exception e) {
@@ -63,9 +74,12 @@ public class DeviceSimulator implements Runnable {
         } finally {
 
             try {
+
                 publisher.disconnect();
+
             } catch (Exception e) {
-                throw new RuntimeException(e);
+
+                e.printStackTrace();
             }
         }
     }

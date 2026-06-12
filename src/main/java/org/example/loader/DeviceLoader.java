@@ -1,6 +1,9 @@
-package org.example;
+package org.example.loader;
 
+import org.example.config.DeviceConfig;
+import org.example.config.SensorConfig;
 import org.example.pattern.PatternFactory;
+import org.example.pattern.PatternType;
 
 import java.util.*;
 

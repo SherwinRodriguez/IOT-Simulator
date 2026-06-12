@@ -1,7 +1,10 @@
-package org.example;
+package org.example.config;
+
+import org.example.pattern.PatternType;
+import org.example.pattern.ValuePattern;
 
 public class SensorConfig {
-    private String name;
+    private String sensorName;
     private double min;
     private double max;
     private double start;
@@ -10,15 +13,15 @@ public class SensorConfig {
     private ValuePattern pattern;
 
     //SETTERS
-    public SensorConfig(String name, double min, double max, double start, double step, PatternType patternType) {
+    public SensorConfig(String sensorName, double min, double max, double start, double step, PatternType patternType) {
         validate(
-                name,
+                sensorName,
                 patternType.name(),
                 min,
                 max,
                 start,
                 step);
-        this.name = name;
+        this.sensorName = sensorName;
         this.min = min;
         this.max = max;
         this.start = start;
@@ -33,7 +36,7 @@ public class SensorConfig {
 
     //VALIDATE
     private void validate(String sensorName,
-                          String pattern,
+                          String patternType,
                           double min,
                           double max,
                           double start,
@@ -43,8 +46,8 @@ public class SensorConfig {
                     sensorName +
                             " : min value cannot be greater than max value");
         }
-        if (pattern.equalsIgnoreCase("INCREMENTAL")
-                || pattern.equalsIgnoreCase("DECREMENTAL")) {
+        if (patternType.equalsIgnoreCase("INCREMENTAL")
+                || patternType.equalsIgnoreCase("DECREMENTAL")) {
             if (start < min || start > max) {
                 throw new IllegalArgumentException(
                         sensorName +
@@ -60,7 +63,7 @@ public class SensorConfig {
 
     //GETTERS
     public String getName() {
-        return name;
+        return sensorName;
     }
     public double getMin() {
         return min;
