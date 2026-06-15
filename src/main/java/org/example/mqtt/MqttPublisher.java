@@ -1,61 +1,42 @@
 package org.example.mqtt;
 
 import org.eclipse.paho.client.mqttv3.*;
-import org.example.config.DeviceConfig;
 
+/**
+ * MQTT publisher for a single device connection.
+ * Takes raw connection parameters directly (no DeviceConfig dependency).
+ */
 public class MqttPublisher {
 
     private final MqttClient mqttClient;
-    private final DeviceConfig deviceConfig;
+    private final String topic;
 
-    public MqttPublisher(
-            String broker,
-            DeviceConfig config) throws Exception {
+    public MqttPublisher(String broker, String clientId, String username,
+                         String password, String topic) throws Exception {
+        this.topic = topic;
 
-        this.deviceConfig = config;
+        mqttClient = new MqttClient(broker, clientId);
 
-        mqttClient = new MqttClient(
-                broker,
-                config.getClientId());
-
-        MqttConnectOptions options =
-                new MqttConnectOptions();
-
-        options.setUserName(
-                config.getUsername());
-
-        options.setPassword(
-                config.getToken().toCharArray());
+        MqttConnectOptions options = new MqttConnectOptions();
+        options.setMqttVersion(MqttConnectOptions.MQTT_VERSION_3_1_1);
+        if (username != null) options.setUserName(username);
+        if (password != null) options.setPassword(password.toCharArray());
         options.setCleanSession(true);
+        options.setKeepAliveInterval(60);
+        options.setConnectionTimeout(30);
 
         mqttClient.connect(options);
-
-        System.out.println(
-                config.getName()
-                        + " connected");
     }
 
-    public void publish(String payload)
-            throws Exception {
 
-        MqttMessage message =
-                new MqttMessage(
-                        payload.getBytes());
-
+    public void publish(String payload) throws Exception {
+        MqttMessage message = new MqttMessage(payload.getBytes());
         message.setQos(1);
-
-        mqttClient.publish(
-                deviceConfig.getTopic(),
-                message);
+        mqttClient.publish(topic, message);
     }
 
-    public void disconnect()
-            throws Exception {
-
-        if (mqttClient.isConnected()) {
-            mqttClient.disconnect();
-        }
-
+    public void disconnect() throws Exception {
+        if (mqttClient.isConnected()) mqttClient.disconnect();
         mqttClient.close();
     }
 }

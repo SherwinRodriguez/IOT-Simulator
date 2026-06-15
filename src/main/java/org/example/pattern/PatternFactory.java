@@ -1,31 +1,24 @@
 package org.example.pattern;
 
-import org.example.config.SensorConfig;
+import org.example.entity.SimulationConfigEntity;
 
+/**
+ * Factory that creates the appropriate ValuePattern from a SimulationConfigEntity.
+ * Legacy methods retained for backwards compatibility.
+ */
 public class PatternFactory {
 
-    public static ValuePattern create(
-            SensorConfig sensor) {
+    /** Create a ValuePattern from the new SimulationConfigEntity (primary path). */
+    public static ValuePattern createFromConfig(SimulationConfigEntity cfg) {
+        double min   = cfg.getMinValue();
+        double max   = cfg.getMaxValue();
+        double start = cfg.getStartValue();
+        double step  = cfg.getStepValue();
 
-        switch (sensor.getPatternType()) {
-
-            case INCREMENTAL:
-                return new IncrementalPattern(
-                        sensor.getStart(),
-                        sensor.getStep(),
-                        sensor.getMax());
-
-            case DECREMENTAL:
-                return new DecrementalPattern(
-                        sensor.getMin(),
-                        sensor.getStep(),
-                        sensor.getStart());
-
-            case RANDOM:
-            default:
-                return new RandomPattern(
-                        sensor.getMin(),
-                        sensor.getMax());
-        }
+        return switch (cfg.getPattern().toUpperCase()) {
+            case "INCREMENTAL" -> new IncrementalPattern(start, step, max);
+            case "DECREMENTAL" -> new DecrementalPattern(min, step, start);
+            default            -> new RandomPattern(min, max); // RANDOM
+        };
     }
 }

@@ -1,86 +1,181 @@
 package org.example.simulator;
 
 import com.google.gson.Gson;
-import org.example.config.DeviceConfig;
+import org.example.entity.DatapointEntity;
+import org.example.entity.DeviceEntity;
+import org.example.entity.SimulationConfigEntity;
 import org.example.mqtt.MqttPublisher;
+import org.example.pattern.PatternFactory;
+import org.example.pattern.ValuePattern;
+import org.example.telemetry.TelemetryMessage;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.messaging.simp.SimpMessagingTemplate;
 
+import java.time.Instant;
+import java.util.HashMap;
+import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Map;
+import java.util.UUID;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicLong;
 
-public class DeviceSimulator
-        implements Runnable {
+/**
+ * Per-device simulator thread.
+ *
+ * - Generates telemetry dynamically from SimulationConfig (no hardcoded datapoints).
+ * - Publishes via MQTT using device credentials from Zoho.
+ * - Pushes real-time telemetry to the WebSocket topic /topic/device/{deviceId}.
+ * - Supports Pause / Resume via an AtomicBoolean flag.
+ */
+public class DeviceSimulator implements Runnable {
 
-    private final DeviceConfig device;
-    private final MqttPublisher publisher;
-    private final AgricultureDataGenerator dataGenerator;
-    private final Gson gson;
+    private static final Logger log = LoggerFactory.getLogger(DeviceSimulator.class);
 
-    public DeviceSimulator(
-            DeviceConfig device,
-            String broker) {
+    private final DeviceEntity device;
+    private final String mqttBroker;
+    private final SimpMessagingTemplate messagingTemplate;
+    private final TelemetryPersistenceCallback persistCallback;
 
-        this.device = device;
+    // Pattern state per datapoint name
+    private final Map<String, ValuePattern> patterns = new LinkedHashMap<>();
+    private final Map<String, SimulationConfigEntity> configs = new LinkedHashMap<>();
 
-        try {
+    // Shared mutable state (thread-safe)
+    private final Map<String, Object> latestTelemetry = new ConcurrentHashMap<>();
+    private final AtomicLong messageCount = new AtomicLong(0);
+    private volatile long lastPublishedMs = 0;
+    private final AtomicBoolean paused = new AtomicBoolean(false);
 
-            this.publisher =
-                    new MqttPublisher(
-                            broker,
-                            device);
+    private MqttPublisher publisher;
+    private final Gson gson = new Gson();
 
-        } catch (Exception e) {
+    /** Default interval in ms if no config present */
+    private static final int DEFAULT_INTERVAL_MS = 5000;
 
-            throw new RuntimeException(e);
+    public DeviceSimulator(DeviceEntity device,
+                           String mqttBroker,
+                           SimpMessagingTemplate messagingTemplate,
+                           TelemetryPersistenceCallback persistCallback) {
+        this.device            = device;
+        this.mqttBroker        = mqttBroker;
+        this.messagingTemplate = messagingTemplate;
+        this.persistCallback   = persistCallback;
+
+        // Initialize patterns from SimulationConfig
+        for (DatapointEntity dp : device.getDatapoints()) {
+            SimulationConfigEntity cfg = dp.getSimulationConfig();
+            if (cfg != null) {
+                patterns.put(dp.getName(), PatternFactory.createFromConfig(cfg));
+                configs.put(dp.getName(), cfg);
+            }
         }
-
-        this.dataGenerator =
-                new AgricultureDataGenerator();
-
-        this.gson =
-                new Gson();
     }
 
     @Override
     public void run() {
-
         try {
+            // Build MQTT connection using device credentials
+            this.publisher = new MqttPublisher(
+                    mqttBroker,
+                    device.getMqttClientId(),
+                    device.getMqttUsername(),
+                    device.getMqttPassword(),
+                    device.getPublishTopic()
+            );
+            log.info("[{}] Simulator started", device.getName());
 
-            while (!Thread.currentThread()
-                    .isInterrupted()) {
+            while (!Thread.currentThread().isInterrupted()) {
+                // Pause check — spin-wait with 200ms sleep
+                while (paused.get() && !Thread.currentThread().isInterrupted()) {
+                    Thread.sleep(200);
+                }
+                if (Thread.currentThread().isInterrupted()) break;
 
-                Map<String, Double> telemetry =
-                        dataGenerator.generate(
-                                device);
+                // Generate telemetry
+                Map<String, Double> telemetry = generateTelemetry();
+                String payload = gson.toJson(telemetry);
 
-                String payload =
-                        gson.toJson(
-                                telemetry);
+                // Publish to MQTT
+                publisher.publish(payload);
 
-                publisher.publish(
-                        payload);
+                // Update in-memory state
+                latestTelemetry.clear();
+                latestTelemetry.putAll(telemetry);
+                long count = messageCount.incrementAndGet();
+                lastPublishedMs = System.currentTimeMillis();
 
-                System.out.println(
-                        device.getName()
-                                + " -> "
-                                + payload);
+                // Push to WebSocket subscribers
+                TelemetryMessage wsMsg = new TelemetryMessage(
+                        device.getId().toString(),
+                        device.getName(),
+                        telemetry,
+                        Instant.now().toString(),
+                        count
+                );
+                messagingTemplate.convertAndSend("/topic/device/" + device.getId(), wsMsg);
 
-                Thread.sleep(
-                        device.getInterval());
+                // Persist for history API
+                if (persistCallback != null) {
+                    persistCallback.persist(device.getId(), telemetry);
+                }
+
+                log.debug("[{}] → {}", device.getName(), payload);
+                Thread.sleep(getPublishInterval());
             }
 
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            log.info("[{}] Simulator interrupted", device.getName());
         } catch (Exception e) {
-
-            e.printStackTrace();
-
+            log.error("[{}] Simulator error: {}", device.getName(), e.getMessage(), e);
         } finally {
-
-            try {
-
-                publisher.disconnect();
-
-            } catch (Exception e) {
-
-                e.printStackTrace();
+            if (publisher != null) {
+                try { publisher.disconnect(); } catch (Exception ex) {
+                    log.warn("[{}] Error disconnecting MQTT: {}", device.getName(), ex.getMessage());
+                }
             }
         }
+    }
+
+    // ─── Pause / Resume ────────────────────────────────────────────────────────
+
+    public void pause()  { paused.set(true);  log.info("[{}] Paused",  device.getName()); }
+    public void resume() { paused.set(false); log.info("[{}] Resumed", device.getName()); }
+    public boolean isPaused() { return paused.get(); }
+
+    // ─── Telemetry Accessors ───────────────────────────────────────────────────
+
+    public Map<String, Object> getLatestTelemetry() { return Map.copyOf(latestTelemetry); }
+    public long getMessageCount()   { return messageCount.get(); }
+    public long getLastPublished()  { return lastPublishedMs; }
+
+    // ─── Private Helpers ───────────────────────────────────────────────────────
+
+    private Map<String, Double> generateTelemetry() {
+        Map<String, Double> result = new LinkedHashMap<>();
+        for (Map.Entry<String, ValuePattern> entry : patterns.entrySet()) {
+            result.put(entry.getKey(), round(entry.getValue().nextValue()));
+        }
+        return result;
+    }
+
+    private int getPublishInterval() {
+        return configs.values().stream()
+                .findFirst()
+                .map(SimulationConfigEntity::getPublishIntervalMs)
+                .orElse(DEFAULT_INTERVAL_MS);
+    }
+
+    private double round(double value) {
+        return Math.round(value * 100.0) / 100.0;
+    }
+
+    /** Callback interface so SimulationManagerService can inject persistence logic */
+    @FunctionalInterface
+    public interface TelemetryPersistenceCallback {
+        void persist(UUID deviceId, Map<String, Double> telemetry);
     }
 }
