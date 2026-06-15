@@ -42,3 +42,10 @@ build/
 .env
 .env.*
 !.env.example
+
+### Docker & App Data ###
+data/
+*.log
+zoho*
+json_response.txt
+*-tcp*
