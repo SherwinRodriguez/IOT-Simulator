@@ -41,6 +41,8 @@ public class SimulationManagerService {
     private final TelemetryCacheRepository telemetryCacheRepository;
     private final EncryptionService encryptionService;
     private final SimpMessagingTemplate messagingTemplate;
+    private final org.example.repository.SimulationConfigRepository simConfigRepository;
+    private final org.springframework.transaction.support.TransactionTemplate transactionTemplate;
 
     // Thread pool — one thread per active simulation
     private final ExecutorService executor = Executors.newCachedThreadPool(r -> {
@@ -56,11 +58,15 @@ public class SimulationManagerService {
     public SimulationManagerService(DeviceRepository deviceRepository,
                                     TelemetryCacheRepository telemetryCacheRepository,
                                     EncryptionService encryptionService,
-                                    SimpMessagingTemplate messagingTemplate) {
+                                    SimpMessagingTemplate messagingTemplate,
+                                    org.example.repository.SimulationConfigRepository simConfigRepository,
+                                    org.springframework.transaction.support.TransactionTemplate transactionTemplate) {
         this.deviceRepository        = deviceRepository;
         this.telemetryCacheRepository = telemetryCacheRepository;
         this.encryptionService       = encryptionService;
         this.messagingTemplate       = messagingTemplate;
+        this.simConfigRepository     = simConfigRepository;
+        this.transactionTemplate     = transactionTemplate;
     }
 
     // ─── Start ────────────────────────────────────────────────────────────────
@@ -74,8 +80,8 @@ public class SimulationManagerService {
         DeviceEntity device = deviceRepository.findById(deviceId)
                 .orElseThrow(() -> new IllegalArgumentException("Device not found: " + deviceId));
 
-        // Eagerly load datapoints + configs
-        device.getDatapoints().size(); // Trigger lazy load
+        // Fetch local simulation configs
+        List<org.example.entity.SimulationConfigEntity> configs = simConfigRepository.findByDeviceId(deviceId);
 
         // Decrypt MQTT password before passing to simulator
         if (device.getMqttPassword() != null) {
@@ -84,6 +90,7 @@ public class SimulationManagerService {
 
         DeviceSimulator simulator = new DeviceSimulator(
                 device,
+                configs,
                 defaultBroker,
                 messagingTemplate,
                 this::persistTelemetry
@@ -143,7 +150,17 @@ public class SimulationManagerService {
         });
     }
 
-    // ─── State Queries ────────────────────────────────────────────────────────
+    // ─── Update Config ────────────────────────────────────────────────────────
+
+    public void updateSimulatorConfig(UUID deviceId, org.example.entity.SimulationConfigEntity cfg) {
+        DeviceSimulator sim = activeSimulators.get(deviceId);
+        if (sim != null) {
+            sim.updateConfig(cfg);
+            log.info("[Manager] Updated config dynamically for device {} parsingKey {}", deviceId, cfg.getParsingKey());
+        }
+    }
+
+    // ─── Status ────────────────────────────────────────────────────────────────
 
     public boolean isRunning(UUID deviceId) { return activeFutures.containsKey(deviceId); }
     public boolean isPaused(UUID deviceId) {
@@ -164,18 +181,19 @@ public class SimulationManagerService {
 
     // ─── Telemetry Persistence ────────────────────────────────────────────────
 
-    @Transactional
     public void persistTelemetry(UUID deviceId, Map<String, Double> telemetry) {
-        telemetry.forEach((dpName, value) -> {
-            TelemetryCacheEntity entry = new TelemetryCacheEntity();
-            entry.setDeviceId(deviceId);
-            entry.setDatapointName(dpName);
-            entry.setValue(value);
-            entry.setRecordedAt(Instant.now());
-            telemetryCacheRepository.save(entry);
+        transactionTemplate.executeWithoutResult(status -> {
+            telemetry.forEach((dpName, value) -> {
+                TelemetryCacheEntity entry = new TelemetryCacheEntity();
+                entry.setDeviceId(deviceId);
+                entry.setDatapointName(dpName);
+                entry.setValue(value);
+                entry.setRecordedAt(Instant.now());
+                telemetryCacheRepository.save(entry);
 
-            // Prune to keep only 100 rows
-            telemetryCacheRepository.pruneOldRecords(deviceId, dpName, TELEMETRY_MAX_ROWS);
+                // Prune to keep only 100 rows
+                telemetryCacheRepository.pruneOldRecords(deviceId, dpName, TELEMETRY_MAX_ROWS);
+            });
         });
     }
 

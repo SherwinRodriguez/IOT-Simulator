@@ -1,7 +1,7 @@
 package org.example.simulator;
 
 import com.google.gson.Gson;
-import org.example.entity.DatapointEntity;
+
 import org.example.entity.DeviceEntity;
 import org.example.entity.SimulationConfigEntity;
 import org.example.mqtt.MqttPublisher;
@@ -56,6 +56,7 @@ public class DeviceSimulator implements Runnable {
     private static final int DEFAULT_INTERVAL_MS = 5000;
 
     public DeviceSimulator(DeviceEntity device,
+                           List<SimulationConfigEntity> simConfigs,
                            String mqttBroker,
                            SimpMessagingTemplate messagingTemplate,
                            TelemetryPersistenceCallback persistCallback) {
@@ -64,13 +65,16 @@ public class DeviceSimulator implements Runnable {
         this.messagingTemplate = messagingTemplate;
         this.persistCallback   = persistCallback;
 
-        // Initialize patterns from SimulationConfig
-        for (DatapointEntity dp : device.getDatapoints()) {
-            SimulationConfigEntity cfg = dp.getSimulationConfig();
-            if (cfg != null) {
-                patterns.put(dp.getName(), PatternFactory.createFromConfig(cfg));
-                configs.put(dp.getName(), cfg);
-            }
+        // Initialize patterns from local SimulationConfigs
+        for (SimulationConfigEntity cfg : simConfigs) {
+            updateConfig(cfg);
+        }
+    }
+
+    public void updateConfig(SimulationConfigEntity cfg) {
+        if (cfg != null && cfg.getParsingKey() != null) {
+            patterns.put(cfg.getParsingKey(), PatternFactory.createFromConfig(cfg));
+            configs.put(cfg.getParsingKey(), cfg);
         }
     }
 

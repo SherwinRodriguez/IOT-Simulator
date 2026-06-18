@@ -46,7 +46,8 @@ const SimulatorConfig: React.FC = () => {
     if (!id) return;
     setSaving(dp.id);
     try {
-      await updateSimConfig(id, dp.id, configs[dp.id]);
+      const dpKey = dp.parsingKey || dp.name;
+      await updateSimConfig(id, dpKey, configs[dp.id]);
       setSaved(dp.id);
       setTimeout(() => setSaved(null), 2000);
       setError('');
