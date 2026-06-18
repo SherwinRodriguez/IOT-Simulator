@@ -60,6 +60,6 @@ public class DeviceEntity {
     @Column(name = "created_at", updatable = false)
     private Instant createdAt = Instant.now();
 
-    @OneToMany(mappedBy = "device", cascade = CascadeType.ALL, orphanRemoval = true, fetch = FetchType.LAZY)
-    private List<DatapointEntity> datapoints = new ArrayList<>();
+    @Column(name = "zoho_model_id")
+    private String zohoModelId;
 }

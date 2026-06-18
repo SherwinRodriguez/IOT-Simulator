@@ -9,5 +9,6 @@ import java.util.UUID;
 
 @Repository
 public interface SimulationConfigRepository extends JpaRepository<SimulationConfigEntity, UUID> {
-    Optional<SimulationConfigEntity> findByDatapointId(UUID datapointId);
+    Optional<SimulationConfigEntity> findByDeviceIdAndParsingKey(UUID deviceId, String parsingKey);
+    java.util.List<SimulationConfigEntity> findByDeviceId(UUID deviceId);
 }

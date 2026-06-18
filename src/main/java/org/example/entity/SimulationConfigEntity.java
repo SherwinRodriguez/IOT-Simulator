@@ -17,10 +17,11 @@ public class SimulationConfigEntity {
     @Column(columnDefinition = "uuid")
     private UUID id;
 
-    @OneToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "datapoint_id", nullable = false, unique = true)
-    @com.fasterxml.jackson.annotation.JsonIgnore
-    private DatapointEntity datapoint;
+    @Column(name = "device_id", nullable = false)
+    private UUID deviceId;
+
+    @Column(name = "parsing_key", nullable = false)
+    private String parsingKey;
 
     /**
      * Pattern type: RANDOM | INCREMENTAL | DECREMENTAL
