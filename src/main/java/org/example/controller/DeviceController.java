@@ -5,7 +5,7 @@ import org.example.entity.UserEntity;
 import org.example.repository.DeviceRepository;
 import org.example.repository.TelemetryCacheRepository;
 import org.example.service.SimulationManagerService;
-import org.example.zoho.DatapointSyncService;
+
 import org.example.zoho.DeviceSyncService;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.http.HttpStatus;
@@ -24,18 +24,15 @@ public class DeviceController {
     private final DeviceRepository deviceRepository;
     private final SimulationManagerService simulationManagerService;
     private final DeviceSyncService deviceSyncService;
-    private final DatapointSyncService datapointSyncService;
     private final TelemetryCacheRepository telemetryCacheRepository;
 
     public DeviceController(DeviceRepository deviceRepository,
                              SimulationManagerService simulationManagerService,
                              DeviceSyncService deviceSyncService,
-                             DatapointSyncService datapointSyncService,
                              TelemetryCacheRepository telemetryCacheRepository) {
         this.deviceRepository         = deviceRepository;
         this.simulationManagerService = simulationManagerService;
         this.deviceSyncService        = deviceSyncService;
-        this.datapointSyncService     = datapointSyncService;
         this.telemetryCacheRepository = telemetryCacheRepository;
     }
 
@@ -83,23 +80,7 @@ public class DeviceController {
         }
     }
 
-    @PostMapping("/{id}/datapoints/sync")
-    public ResponseEntity<?> syncDatapoints(@PathVariable UUID id,
-                                             @AuthenticationPrincipal UserEntity user) {
-        return deviceRepository.findByIdAndUser(id, user).map(device -> {
-            try {
-                var dps = datapointSyncService.syncDatapoints(user, device);
-                return ResponseEntity.ok(Map.of(
-                        "synced", dps.size(),
-                        "message", "Datapoints synced from Zoho IoT"
-                ));
-            } catch (Exception e) {
-                org.slf4j.LoggerFactory.getLogger(DeviceController.class).error("Datapoints Sync failed for device " + id, e);
-                return ResponseEntity.status(HttpStatus.BAD_GATEWAY)
-                        .body(Map.of("error", "Zoho sync failed: " + e.getMessage()));
-            }
-        }).orElse(ResponseEntity.notFound().build());
-    }
+
 
     // ─── Simulation Control ───────────────────────────────────────────────────
 

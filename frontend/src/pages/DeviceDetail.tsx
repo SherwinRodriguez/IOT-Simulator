@@ -5,18 +5,22 @@ import {
   Play, Square, PauseCircle, Tag
 } from 'lucide-react';
 import {
-  getDevice, getDatapoints, syncDatapoints,
+  getDevice, getDatapoints,
   startSimulation, stopSimulation, pauseSimulation, resumeSimulation,
 } from '../api';
 
 const DeviceDetail: React.FC = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
-  const [device, setDevice]       = useState<any>(null);
+  const [device, setDevice] = useState<any>(null);
   const [datapoints, setDatapoints] = useState<any[]>([]);
-  const [loading, setLoading]      = useState(true);
-  const [syncing, setSyncing]      = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [syncing, setSyncing] = useState(false);
   const [actionBusy, setActionBusy] = useState(false);
+
+  const [newDp, setNewDp] = useState({ name: '', dataType: 'Numeric', unit: '', parsingKey: '' });
+  const [showAddDp, setShowAddDp] = useState(false);
+  const [addingDp, setAddingDp] = useState(false);
 
   const load = async () => {
     if (!id) return;
@@ -33,17 +37,45 @@ const DeviceDetail: React.FC = () => {
   const handleSyncDp = async () => {
     if (!id) return;
     setSyncing(true);
-    try { await syncDatapoints(id); await load(); }
+    try { await load(); }
     finally { setSyncing(false); }
+  };
+
+  const handleAddDp = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!id || !newDp.name.trim()) return;
+    setAddingDp(true);
+    try {
+      const { addDatapoint } = await import('../api');
+      await addDatapoint(id, newDp);
+      setNewDp({ name: '', dataType: 'Numeric', unit: '', parsingKey: '' });
+      setShowAddDp(false);
+      await load();
+    } catch (err: any) {
+      alert(err.response?.data?.error || 'Failed to add datapoint');
+    } finally {
+      setAddingDp(false);
+    }
+  };
+
+  const handleDeleteDp = async (dpId: string) => {
+    if (!id || !confirm('Are you sure you want to delete this datapoint?')) return;
+    try {
+      const { deleteDatapoint } = await import('../api');
+      await deleteDatapoint(id, dpId);
+      await load();
+    } catch (err: any) {
+      alert('Failed to delete datapoint');
+    }
   };
 
   const handleSim = async (action: 'start' | 'stop' | 'pause' | 'resume') => {
     if (!id) return;
     setActionBusy(true);
     try {
-      if (action === 'start')  await startSimulation(id);
-      if (action === 'stop')   await stopSimulation(id);
-      if (action === 'pause')  await pauseSimulation(id);
+      if (action === 'start') await startSimulation(id);
+      if (action === 'stop') await stopSimulation(id);
+      if (action === 'pause') await pauseSimulation(id);
       if (action === 'resume') await resumeSimulation(id);
       await load();
     } finally { setActionBusy(false); }
@@ -55,7 +87,7 @@ const DeviceDetail: React.FC = () => {
   if (!device) return null;
 
   const isRunning = device.status === 'RUNNING';
-  const isPaused  = device.status === 'PAUSED';
+  const isPaused = device.status === 'PAUSED';
 
   return (
     <div className="fade-in">
@@ -113,6 +145,9 @@ const DeviceDetail: React.FC = () => {
         <Link to={`/devices/${id}/graph`} className="btn btn-cyan">
           <BarChart2 size={14} /> Live Graph
         </Link>
+        <Link to={`/devices/${id}/historical`} className="btn btn-primary" style={{ backgroundColor: '#6366f1', color: '#fff', border: 'none' }}>
+          <BarChart2 size={14} /> Historical Graph
+        </Link>
         <Link to={`/devices/${id}/config`} className="btn btn-secondary">
           <Settings size={14} /> Simulator Config
         </Link>
@@ -140,30 +175,86 @@ const DeviceDetail: React.FC = () => {
 
       {/* Datapoints */}
       <div className="card" style={{ padding: 0, overflow: 'hidden' }}>
-        <div style={{ padding: '20px 24px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid var(--border-subtle)' }}>
+        <div style={{ padding: '20px 24px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid var(--border-subtle)', flexWrap: 'wrap', gap: 12 }}>
           <h2 style={{ fontWeight: 700, fontSize: 16 }}>
             Datapoints <span style={{ color: 'var(--text-muted)', fontSize: 14, fontWeight: 400 }}>({datapoints.length})</span>
           </h2>
-          <button className="btn btn-secondary" onClick={handleSyncDp} disabled={syncing} style={{ fontSize: 13 }}>
-            {syncing ? <RotateCcw size={13} style={{ animation: 'spin 0.7s linear infinite' }} /> : <RotateCcw size={13} />}
-            Sync Datapoints
-          </button>
+          <div style={{ display: 'flex', gap: 8 }}>
+            <button className="btn btn-primary" onClick={() => setShowAddDp(!showAddDp)}>
+              + Add Datapoint
+            </button>
+            <button className="btn btn-secondary" onClick={handleSyncDp} disabled={syncing} style={{ fontSize: 13 }}>
+              {syncing ? <RotateCcw size={13} style={{ animation: 'spin 0.7s linear infinite' }} /> : <RotateCcw size={13} />}
+              Refresh
+            </button>
+          </div>
         </div>
+
+        {showAddDp && (
+          <div style={{ padding: '16px 24px', backgroundColor: 'var(--bg-card)', borderBottom: '1px solid var(--border-subtle)' }}>
+            <form onSubmit={handleAddDp} style={{ display: 'flex', gap: 12, alignItems: 'center', flexWrap: 'wrap' }}>
+              <input
+                type="text"
+                placeholder="Datapoint Name (e.g. soil_temp)"
+                value={newDp.name}
+                onChange={e => setNewDp({ ...newDp, name: e.target.value })}
+                className="input"
+                style={{ flex: 1, minWidth: 200 }}
+                required
+              />
+              <select
+                value={newDp.dataType}
+                onChange={e => setNewDp({ ...newDp, dataType: e.target.value })}
+                className="input"
+                style={{ width: 120 }}
+              >
+                <option value="Numeric">Numeric</option>
+                <option value="string">String</option>
+                <option value="boolean">Boolean</option>
+              </select>
+              <input
+                type="text"
+                placeholder="Unit (e.g. °C)"
+                value={newDp.unit}
+                onChange={e => setNewDp({ ...newDp, unit: e.target.value })}
+                className="input"
+                style={{ width: 100 }}
+              />
+              <input
+                type="text"
+                placeholder="Parsing Key (e.g. temp)"
+                value={newDp.parsingKey}
+                onChange={e => setNewDp({ ...newDp, parsingKey: e.target.value })}
+                className="input"
+                style={{ width: 150 }}
+              />
+              <button type="submit" className="btn btn-primary" disabled={addingDp}>
+                {addingDp ? 'Adding...' : 'Save'}
+              </button>
+              <button type="button" className="btn btn-ghost" onClick={() => setShowAddDp(false)}>
+                Cancel
+              </button>
+            </form>
+          </div>
+        )}
+
         {datapoints.length === 0 ? (
           <div style={{ padding: 40, textAlign: 'center', color: 'var(--text-muted)' }}>
             <Tag size={32} style={{ margin: '0 auto 12px', display: 'block' }} />
-            No datapoints synced. Click "Sync Datapoints" to import from Zoho.
+            No datapoints defined. Add one manually or click "Sync Defaults".
           </div>
         ) : (
           <table className="data-table">
             <thead>
               <tr>
                 <th>Name</th>
+                <th>Parsing Key</th>
                 <th>Unit</th>
                 <th>Type</th>
                 <th>Pattern</th>
                 <th>Range</th>
                 <th>Interval</th>
+                <th style={{ textAlign: 'right' }}>Actions</th>
               </tr>
             </thead>
             <tbody>
@@ -171,7 +262,8 @@ const DeviceDetail: React.FC = () => {
                 const cfg = dp.simulationConfig;
                 return (
                   <tr key={dp.id}>
-                    <td style={{ fontWeight: 600, color: 'var(--text-primary)', fontFamily: 'monospace' }}>{dp.name}</td>
+                    <td style={{ fontWeight: 600, color: 'var(--text-primary)' }}>{dp.name}</td>
+                    <td style={{ fontFamily: 'monospace', color: 'var(--text-muted)' }}>{dp.parsingKey || '—'}</td>
                     <td>{dp.unit || '—'}</td>
                     <td><span className="badge badge-cyan">{dp.dataType}</span></td>
                     <td>
@@ -186,6 +278,15 @@ const DeviceDetail: React.FC = () => {
                     </td>
                     <td style={{ fontSize: 12 }}>
                       {cfg ? `${cfg.publishIntervalMs / 1000}s` : '—'}
+                    </td>
+                    <td style={{ textAlign: 'right' }}>
+                      <button
+                        className="btn btn-danger"
+                        style={{ padding: '4px 8px', fontSize: 11 }}
+                        onClick={() => handleDeleteDp(dp.id)}
+                      >
+                        Delete
+                      </button>
                     </td>
                   </tr>
                 );

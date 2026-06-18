@@ -30,6 +30,10 @@ export const resumeSimulation = (id: string) => api.post(`/api/devices/${id}/res
 // ─── Datapoints ────────────────────────────────────────────────────────────
 export const getDatapoints   = (deviceId: string) => api.get(`/api/devices/${deviceId}/datapoints`);
 export const syncDatapoints  = (deviceId: string) => api.post(`/api/devices/${deviceId}/datapoints/sync`);
+export const addDatapoint    = (deviceId: string, data: { name: string, dataType?: string, unit?: string }) => 
+  api.post(`/api/devices/${deviceId}/datapoints`, data);
+export const deleteDatapoint = (deviceId: string, dpId: string) => 
+  api.delete(`/api/devices/${deviceId}/datapoints/${dpId}`);
 export const getSimConfig    = (deviceId: string, dpId: string) =>
   api.get(`/api/devices/${deviceId}/datapoints/${dpId}/config`);
 export const updateSimConfig = (deviceId: string, dpId: string, config: any) =>
@@ -40,3 +44,5 @@ export const getTelemetryHistory = (deviceId: string) =>
   api.get(`/api/devices/${deviceId}/telemetry/history`);
 export const getLiveTelemetry = (deviceId: string) =>
   api.get(`/api/devices/${deviceId}/telemetry/live`);
+export const getHistoricalTelemetryZoho = (deviceId: string, params: { datapointName: string, period?: string, aggregation?: string, timeGrouping?: string, startTime?: number, endTime?: number }) =>
+  api.get(`/api/devices/${deviceId}/telemetry/historical/zoho`, { params });
