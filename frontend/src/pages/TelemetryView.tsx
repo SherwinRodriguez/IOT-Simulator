@@ -22,8 +22,8 @@ const LiveGraph: React.FC = () => {
   const { subscribe, isConnected } = useWebSocket();
 
   const [device, setDevice]         = useState<any>(null);
-  const [datapointNames, setDpNames] = useState<string[]>([]);
-  // history: { time: string, [dpName]: number }[]
+  const [datapoints, setDatapoints] = useState<{name: string, key: string}[]>([]);
+  // history: { time: string, [dpKey]: number }[]
   const historyRef = useRef<any[]>([]);
   const [chartData, setChartData]   = useState<any[]>([]);
   const [loading, setLoading]       = useState(true);
@@ -34,8 +34,11 @@ const LiveGraph: React.FC = () => {
     Promise.all([getDevice(id), getDatapoints(id), getTelemetryHistory(id)])
       .then(([devRes, dpRes, histRes]) => {
         setDevice(devRes.data);
-        const names: string[] = dpRes.data.map((d: any) => d.name);
-        setDpNames(names);
+        const dps = dpRes.data.map((d: any) => ({
+          name: d.name,
+          key: d.simulationConfig?.parsingKey || d.parsingKey || d.name
+        }));
+        setDatapoints(dps);
 
         // Seed chart with existing telemetry_cache data
         const rows = histRes.data as any[];
@@ -65,16 +68,16 @@ const LiveGraph: React.FC = () => {
       setChartData([...historyRef.current]);
     });
     return unsub;
-  }, [id, subscribe]);
+  }, [id, subscribe, datapoints]);
 
   if (loading) return (
     <div style={{ padding: 48, textAlign: 'center', color: 'var(--text-muted)' }}>Loading graph…</div>
   );
 
   return (
-    <div className="fade-in">
-      <div className="page-header">
-        <button className="btn btn-ghost" style={{ marginBottom: 16 }} onClick={() => navigate(`/devices/${id}`)}>
+    <div className="telemetry-view">
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24 }}>
+        <button className="btn btn-ghost" onClick={() => navigate(`/devices/${id}`)}>
           <ArrowLeft size={14} /> Back to Device
         </button>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
@@ -89,7 +92,7 @@ const LiveGraph: React.FC = () => {
         </div>
       </div>
 
-      {datapointNames.length === 0 ? (
+      {datapoints.length === 0 ? (
         <div className="card" style={{ textAlign: 'center', padding: 48 }}>
           <p style={{ color: 'var(--text-muted)' }}>No datapoints configured. Sync and configure datapoints first.</p>
         </div>
@@ -127,13 +130,15 @@ const LiveGraph: React.FC = () => {
                 <Legend
                   wrapperStyle={{ fontSize: 12, paddingTop: 12 }}
                 />
-                {datapointNames.map((name, i) => (
+                {datapoints.map((dp, i) => (
                   <Line
-                    key={name}
+                    key={dp.key}
+                    name={dp.name}
                     type="monotone"
-                    dataKey={name}
+                    dataKey={dp.key}
                     stroke={CHART_COLORS[i % CHART_COLORS.length]}
-                    dot={false}
+                    dot={{ r: 3, strokeWidth: 1 }}
+                    activeDot={{ r: 5 }}
                     strokeWidth={2}
                     isAnimationActive={false}
                     connectNulls
@@ -145,13 +150,13 @@ const LiveGraph: React.FC = () => {
 
           {/* Individual charts per datapoint */}
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(400px, 1fr))', gap: 20 }}>
-            {datapointNames.map((name, i) => {
-              const latest = chartData[chartData.length - 1]?.[name];
+            {datapoints.map((dp, i) => {
+              const latest = chartData[chartData.length - 1]?.[dp.key];
               return (
-                <div key={name} className="card">
+                <div key={dp.key} className="card">
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
                     <h3 style={{ fontFamily: 'monospace', fontSize: 15, fontWeight: 700, color: CHART_COLORS[i % CHART_COLORS.length] }}>
-                      {name}
+                      {dp.name}
                     </h3>
                     <span style={{ fontSize: 24, fontWeight: 800, color: 'var(--text-primary)' }}>
                       {latest !== undefined ? latest.toFixed(2) : '—'}
@@ -167,10 +172,12 @@ const LiveGraph: React.FC = () => {
                         labelStyle={{ color: 'var(--text-secondary)' }}
                       />
                       <Line
+                        name={dp.name}
                         type="monotone"
-                        dataKey={name}
+                        dataKey={dp.key}
                         stroke={CHART_COLORS[i % CHART_COLORS.length]}
-                        dot={false}
+                        dot={{ r: 2, strokeWidth: 1 }}
+                        activeDot={{ r: 4 }}
                         strokeWidth={2}
                         isAnimationActive={false}
                         connectNulls
@@ -188,14 +195,14 @@ const LiveGraph: React.FC = () => {
             <div className="card">
               <h2 style={{ fontWeight: 700, fontSize: 16, marginBottom: 16 }}>Current Values</h2>
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(160px, 1fr))', gap: 12 }}>
-                {datapointNames.map((name, i) => {
-                  const val = chartData[chartData.length - 1]?.[name];
+                {datapoints.map((dp, i) => {
+                  const val = chartData[chartData.length - 1]?.[dp.key];
                   return (
-                    <div key={name} style={{
+                    <div key={dp.key} style={{
                       padding: '14px 16px', background: 'var(--bg-elevated)',
                       borderRadius: 10, border: `1px solid ${CHART_COLORS[i % CHART_COLORS.length]}30`,
                     }}>
-                      <div style={{ fontSize: 11, color: 'var(--text-muted)', marginBottom: 6, fontFamily: 'monospace' }}>{name}</div>
+                      <div style={{ fontSize: 11, color: 'var(--text-muted)', marginBottom: 6, fontFamily: 'monospace' }}>{dp.name}</div>
                       <div style={{ fontSize: 24, fontWeight: 800, color: CHART_COLORS[i % CHART_COLORS.length] }}>
                         {val !== undefined ? val.toFixed(2) : '—'}
                       </div>

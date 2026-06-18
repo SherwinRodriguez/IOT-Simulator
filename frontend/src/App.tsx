@@ -11,6 +11,7 @@ import DeviceManager from './pages/DeviceManager';
 import DeviceDetail from './pages/DeviceDetail';
 import SimulatorConfig from './pages/SimulatorConfig';
 import LiveGraph from './pages/TelemetryView';
+import HistoricalGraph from './pages/HistoricalGraph';
 import Settings from './pages/Settings';
 import './index.css';
 
@@ -38,6 +39,7 @@ function App() {
               <Route path="/devices/:id" element={<AppLayout><DeviceDetail /></AppLayout>} />
               <Route path="/devices/:id/config" element={<AppLayout><SimulatorConfig /></AppLayout>} />
               <Route path="/devices/:id/graph" element={<AppLayout><LiveGraph /></AppLayout>} />
+              <Route path="/devices/:id/historical" element={<AppLayout><HistoricalGraph /></AppLayout>} />
               <Route path="/settings" element={<AppLayout><Settings /></AppLayout>} />
             </Route>
 
