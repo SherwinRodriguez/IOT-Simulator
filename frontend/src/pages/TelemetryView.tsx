@@ -1,6 +1,6 @@
 import React, { useEffect, useState, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { ArrowLeft, Wifi, WifiOff } from 'lucide-react';
+import { ArrowLeft } from 'lucide-react';
 import {
   LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip,
   ResponsiveContainer, Legend,
@@ -10,8 +10,8 @@ import { getDevice, getDatapoints, getTelemetryHistory } from '../api';
 import { format } from 'date-fns';
 
 const CHART_COLORS = [
-  '#22c55e', '#06b6d4', '#8b5cf6', '#f59e0b',
-  '#ef4444', '#ec4899', '#14b8a6', '#f97316',
+  '#1976d2', '#2e7d32', '#f57c00', '#d32f2f',
+  '#7b1fa2', '#0288d1', '#c2185b', '#00838f',
 ];
 
 const MAX_POINTS = 100;
@@ -23,12 +23,10 @@ const LiveGraph: React.FC = () => {
 
   const [device, setDevice]         = useState<any>(null);
   const [datapoints, setDatapoints] = useState<{name: string, key: string}[]>([]);
-  // history: { time: string, [dpKey]: number }[]
   const historyRef = useRef<any[]>([]);
   const [chartData, setChartData]   = useState<any[]>([]);
   const [loading, setLoading]       = useState(true);
 
-  // Load device + datapoints + seed history
   useEffect(() => {
     if (!id) return;
     Promise.all([getDevice(id), getDatapoints(id), getTelemetryHistory(id)])
@@ -40,9 +38,7 @@ const LiveGraph: React.FC = () => {
         }));
         setDatapoints(dps);
 
-        // Seed chart with existing telemetry_cache data
         const rows = histRes.data as any[];
-        // Group by timestamp (approximate) — convert array of {datapointName, value, recordedAt}
         const byTime: Record<string, any> = {};
         rows.slice().reverse().forEach((r: any) => {
           const t = format(new Date(r.recordedAt), 'HH:mm:ss');
@@ -57,7 +53,6 @@ const LiveGraph: React.FC = () => {
       .finally(() => setLoading(false));
   }, [id]);
 
-  // Subscribe to WebSocket
   useEffect(() => {
     if (!id) return;
     const unsub = subscribe(id, (msg) => {
@@ -75,20 +70,22 @@ const LiveGraph: React.FC = () => {
   );
 
   return (
-    <div className="telemetry-view">
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24 }}>
-        <button className="btn btn-ghost" onClick={() => navigate(`/devices/${id}`)}>
-          <ArrowLeft size={14} /> Back to Device
-        </button>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+    <div className="fade-in">
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+          <button className="btn btn-ghost" onClick={() => navigate(`/devices/${id}`)} style={{ padding: '4px 8px' }}>
+            <ArrowLeft size={14} />
+          </button>
           <div>
             <h1 className="page-title">Live Telemetry — {device?.name}</h1>
-            <p className="page-subtitle">Real-time sensor data · last {MAX_POINTS} points per datapoint</p>
+            <p className="page-subtitle">Real-time sensor data · last {MAX_POINTS} points</p>
           </div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 13, color: isConnected ? 'var(--accent-green)' : 'var(--text-muted)' }}>
-            {isConnected ? <Wifi size={15} /> : <WifiOff size={15} />}
+        </div>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 13 }}>
+          <span className={`conn-dot ${isConnected ? 'conn-dot-connected' : 'conn-dot-disconnected'}`} />
+          <span style={{ color: isConnected ? 'var(--accent-green)' : 'var(--text-muted)' }}>
             {isConnected ? 'Live' : 'Disconnected'}
-          </div>
+          </span>
         </div>
       </div>
 
@@ -97,39 +94,38 @@ const LiveGraph: React.FC = () => {
           <p style={{ color: 'var(--text-muted)' }}>No datapoints configured. Sync and configure datapoints first.</p>
         </div>
       ) : (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
           {/* Combined chart */}
           <div className="card">
-            <h2 style={{ fontWeight: 700, fontSize: 16, marginBottom: 20 }}>All Sensors</h2>
+            <h2 style={{ fontWeight: 600, fontSize: 15, marginBottom: 16 }}>All Sensors</h2>
             <ResponsiveContainer width="100%" height={320}>
               <LineChart data={chartData} margin={{ top: 5, right: 20, bottom: 5, left: 0 }}>
-                <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" />
+                <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
                 <XAxis
                   dataKey="time"
-                  tick={{ fill: 'var(--text-muted)', fontSize: 11 }}
+                  tick={{ fill: '#9aa0a6', fontSize: 11 }}
                   tickLine={false}
-                  axisLine={{ stroke: 'var(--border-subtle)' }}
+                  axisLine={{ stroke: '#e5e7eb' }}
                   interval="preserveStartEnd"
                 />
                 <YAxis
-                  tick={{ fill: 'var(--text-muted)', fontSize: 11 }}
+                  tick={{ fill: '#9aa0a6', fontSize: 11 }}
                   tickLine={false}
                   axisLine={false}
                   width={40}
                 />
                 <Tooltip
                   contentStyle={{
-                    background: 'var(--bg-elevated)',
-                    border: '1px solid var(--border-bright)',
-                    borderRadius: 10,
+                    background: '#fff',
+                    border: '1px solid #e5e7eb',
+                    borderRadius: 8,
                     fontSize: 12,
+                    boxShadow: '0 4px 12px rgba(0,0,0,0.08)',
                   }}
-                  labelStyle={{ color: 'var(--text-secondary)', marginBottom: 6 }}
-                  itemStyle={{ color: 'var(--text-primary)' }}
+                  labelStyle={{ color: '#5f6368', marginBottom: 4 }}
+                  itemStyle={{ color: '#1a1a1a' }}
                 />
-                <Legend
-                  wrapperStyle={{ fontSize: 12, paddingTop: 12 }}
-                />
+                <Legend wrapperStyle={{ fontSize: 12, paddingTop: 12 }} />
                 {datapoints.map((dp, i) => (
                   <Line
                     key={dp.key}
@@ -137,7 +133,7 @@ const LiveGraph: React.FC = () => {
                     type="monotone"
                     dataKey={dp.key}
                     stroke={CHART_COLORS[i % CHART_COLORS.length]}
-                    dot={{ r: 3, strokeWidth: 1 }}
+                    dot={{ r: 2, strokeWidth: 1 }}
                     activeDot={{ r: 5 }}
                     strokeWidth={2}
                     isAnimationActive={false}
@@ -148,40 +144,39 @@ const LiveGraph: React.FC = () => {
             </ResponsiveContainer>
           </div>
 
-          {/* Individual charts per datapoint */}
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(400px, 1fr))', gap: 20 }}>
+          {/* Individual charts */}
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(380px, 1fr))', gap: 16 }}>
             {datapoints.map((dp, i) => {
               const latest = chartData[chartData.length - 1]?.[dp.key];
               return (
                 <div key={dp.key} className="card">
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
-                    <h3 style={{ fontFamily: 'monospace', fontSize: 15, fontWeight: 700, color: CHART_COLORS[i % CHART_COLORS.length] }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
+                    <h3 style={{ fontSize: 14, fontWeight: 600, color: CHART_COLORS[i % CHART_COLORS.length] }}>
                       {dp.name}
                     </h3>
-                    <span style={{ fontSize: 24, fontWeight: 800, color: 'var(--text-primary)' }}>
+                    <span style={{ fontSize: 22, fontWeight: 700, color: 'var(--text-primary)' }}>
                       {latest !== undefined ? latest.toFixed(2) : '—'}
                     </span>
                   </div>
-                  <ResponsiveContainer width="100%" height={140}>
+                  <ResponsiveContainer width="100%" height={120}>
                     <LineChart data={chartData} margin={{ top: 2, right: 8, bottom: 2, left: -20 }}>
-                      <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.04)" />
+                      <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
                       <XAxis dataKey="time" hide />
-                      <YAxis tick={{ fill: 'var(--text-muted)', fontSize: 10 }} tickLine={false} axisLine={false} width={40} />
+                      <YAxis tick={{ fill: '#9aa0a6', fontSize: 10 }} tickLine={false} axisLine={false} width={40} />
                       <Tooltip
-                        contentStyle={{ background: 'var(--bg-elevated)', border: '1px solid var(--border-bright)', borderRadius: 8, fontSize: 11 }}
-                        labelStyle={{ color: 'var(--text-secondary)' }}
+                        contentStyle={{ background: '#fff', border: '1px solid #e5e7eb', borderRadius: 6, fontSize: 11, boxShadow: '0 2px 8px rgba(0,0,0,0.06)' }}
+                        labelStyle={{ color: '#5f6368' }}
                       />
                       <Line
                         name={dp.name}
                         type="monotone"
                         dataKey={dp.key}
                         stroke={CHART_COLORS[i % CHART_COLORS.length]}
-                        dot={{ r: 2, strokeWidth: 1 }}
+                        dot={{ r: 1.5, strokeWidth: 1 }}
                         activeDot={{ r: 4 }}
                         strokeWidth={2}
                         isAnimationActive={false}
                         connectNulls
-                        fill={`url(#grad-${i})`}
                       />
                     </LineChart>
                   </ResponsiveContainer>
@@ -190,20 +185,22 @@ const LiveGraph: React.FC = () => {
             })}
           </div>
 
-          {/* Current values table */}
+          {/* Current values */}
           {chartData.length > 0 && (
             <div className="card">
-              <h2 style={{ fontWeight: 700, fontSize: 16, marginBottom: 16 }}>Current Values</h2>
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(160px, 1fr))', gap: 12 }}>
+              <h2 style={{ fontWeight: 600, fontSize: 15, marginBottom: 14 }}>Current Values</h2>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(150px, 1fr))', gap: 12 }}>
                 {datapoints.map((dp, i) => {
                   const val = chartData[chartData.length - 1]?.[dp.key];
                   return (
                     <div key={dp.key} style={{
-                      padding: '14px 16px', background: 'var(--bg-elevated)',
-                      borderRadius: 10, border: `1px solid ${CHART_COLORS[i % CHART_COLORS.length]}30`,
+                      padding: '12px 16px',
+                      background: 'var(--bg-elevated)',
+                      borderRadius: 8,
+                      border: '1px solid var(--border-subtle)',
                     }}>
-                      <div style={{ fontSize: 11, color: 'var(--text-muted)', marginBottom: 6, fontFamily: 'monospace' }}>{dp.name}</div>
-                      <div style={{ fontSize: 24, fontWeight: 800, color: CHART_COLORS[i % CHART_COLORS.length] }}>
+                      <div style={{ fontSize: 11, color: 'var(--text-muted)', marginBottom: 6 }}>{dp.name}</div>
+                      <div style={{ fontSize: 22, fontWeight: 700, color: CHART_COLORS[i % CHART_COLORS.length] }}>
                         {val !== undefined ? val.toFixed(2) : '—'}
                       </div>
                     </div>

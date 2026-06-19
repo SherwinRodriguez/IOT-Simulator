@@ -51,8 +51,8 @@ const HistoricalGraph: React.FC = () => {
     try {
       const dp = datapoints.find((d: any) => d.id === selectedDp);
       if (!dp) return;
-      
-      const dpName = dp.simulationConfig?.parsingKey || dp.parsingKey || dp.name;
+      // Zoho API expects the actual display name for the datapoint_name parameter, not the parsing key
+      const dpName = dp.name;
 
       const params: any = {
         datapointName: dpName,
@@ -62,8 +62,13 @@ const HistoricalGraph: React.FC = () => {
       };
 
       if (period === 'custom') {
-        if (customStart) params.startTime = new Date(customStart).getTime();
-        if (customEnd) params.endTime = new Date(customEnd).getTime();
+        if (!customStart || !customEnd) {
+          setErrorMsg('Please select both a start and end date for the custom range.');
+          setFetchingData(false);
+          return;
+        }
+        params.startTime = new Date(customStart).getTime();
+        params.endTime = new Date(customEnd).getTime();
       }
 
       const res = await getHistoricalTelemetryZoho(id, params);
@@ -81,8 +86,8 @@ const HistoricalGraph: React.FC = () => {
 
       // Check if it's the specific Zoho {"DatapointName": [[time, value],...]} or {"DatapointName": 20} format
       if (responseData && typeof responseData === 'object' && !Array.isArray(responseData)) {
-         if (responseData[selectedDp] !== undefined) {
-            const val = responseData[selectedDp];
+         if (responseData[dpName] !== undefined) {
+            const val = responseData[dpName];
             if (Array.isArray(val)) {
                dataArray = val; // Time series format
             } else {
@@ -90,7 +95,17 @@ const HistoricalGraph: React.FC = () => {
                dataArray = [[new Date().toLocaleString(), val]];
             }
          } else if (responseData.data && Array.isArray(responseData.data)) {
-            dataArray = responseData.data;
+            if (responseData.data.length > 0 && responseData.data[0][dpName] && Array.isArray(responseData.data[0][dpName])) {
+                dataArray = responseData.data[0][dpName];
+            } else {
+                dataArray = responseData.data;
+            }
+         } else if (responseData.data && responseData.data.result && Array.isArray(responseData.data.result)) {
+            if (responseData.data.result.length > 0 && responseData.data.result[0][dpName] && Array.isArray(responseData.data.result[0][dpName])) {
+                dataArray = responseData.data.result[0][dpName];
+            } else {
+                dataArray = responseData.data.result;
+            }
          } else if (responseData.datapoints && Array.isArray(responseData.datapoints)) {
             dataArray = responseData.datapoints;
          } else {
@@ -110,8 +125,14 @@ const HistoricalGraph: React.FC = () => {
          dataArray = responseData;
       }
       
-      if (!Array.isArray(dataArray) || dataArray.length === 0) {
+      if (!Array.isArray(dataArray)) {
          setErrorMsg("Received unexpected data format from Zoho.");
+         setGraphData([]);
+         return;
+      }
+      
+      if (dataArray.length === 0) {
+         setErrorMsg("No data found for the selected period.");
          setGraphData([]);
          return;
       }
@@ -126,10 +147,21 @@ const HistoricalGraph: React.FC = () => {
            };
         } else {
            // Fallback standard object format
-           const ts = pt.time || pt.timestamp || pt.time_stamp;
+           let timeStr = 'Unknown';
+           if (pt.timestamp_string) {
+               timeStr = pt.timestamp_string;
+           } else {
+               const ts = pt.time || pt.timestamp || pt.time_stamp;
+               if (ts) {
+                   // If it's a string of digits like "1781073000000", convert to Number first
+                   const tsNum = typeof ts === 'string' && /^\d+$/.test(ts) ? Number(ts) : ts;
+                   timeStr = new Date(tsNum).toLocaleString();
+               }
+           }
+           
            const val = pt.value !== undefined ? pt.value : pt[aggregation];
            return {
-             time: ts ? new Date(ts).toLocaleString() : 'Unknown',
+             time: timeStr,
              value: val == null ? null : Number(val)
            };
         }
@@ -172,7 +204,7 @@ const HistoricalGraph: React.FC = () => {
             </label>
             <select className="input" value={selectedDp} onChange={e => setSelectedDp(e.target.value)} style={{ minWidth: 150 }}>
               {datapoints.map(dp => (
-                <option key={dp.id} value={dp.name}>{dp.name}</option>
+                <option key={dp.id} value={dp.id}>{dp.name}</option>
               ))}
               {datapoints.length === 0 && <option value="">No datapoints</option>}
             </select>
@@ -216,6 +248,7 @@ const HistoricalGraph: React.FC = () => {
               Aggregation
             </label>
             <select className="input" value={aggregation} onChange={e => setAggregation(e.target.value)} style={{ minWidth: 120 }}>
+              <option value="raw">Raw (None)</option>
               <option value="avg">Average</option>
               <option value="sum">Sum</option>
               <option value="max">Maximum</option>
@@ -261,7 +294,7 @@ const HistoricalGraph: React.FC = () => {
 
       <div className="card" style={{ height: 500, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
         {errorMsg ? (
-          <div style={{ padding: 40, textAlign: 'center', color: '#ef4444', backgroundColor: '#fef2f2', borderRadius: 8 }}>
+          <div className="alert alert-error">
             <strong>Error fetching data:</strong> {errorMsg}
           </div>
         ) : fetchingData && graphData.length === 0 ? (
@@ -276,7 +309,7 @@ const HistoricalGraph: React.FC = () => {
           <div style={{ flex: 1, overflowY: 'auto', padding: '0 16px' }}>
             <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left' }}>
               <thead>
-                <tr style={{ borderBottom: '2px solid var(--border-subtle)', position: 'sticky', top: 0, backgroundColor: 'var(--bg-card)', zIndex: 1 }}>
+                <tr style={{ borderBottom: '2px solid var(--border-subtle)', position: 'sticky', top: 0, backgroundColor: '#fff', zIndex: 1 }}>
                   <th style={{ padding: '12px 16px', color: 'var(--text-muted)', fontWeight: 600, fontSize: 13 }}>Time</th>
                   <th style={{ padding: '12px 16px', color: 'var(--text-muted)', fontWeight: 600, fontSize: 13 }}>Value</th>
                 </tr>
@@ -296,42 +329,42 @@ const HistoricalGraph: React.FC = () => {
             <AreaChart data={graphData} margin={{ top: 30, right: 30, left: 20, bottom: 60 }}>
               <defs>
                 <linearGradient id="colorValue" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="5%" stopColor="#3ea8ff" stopOpacity={0.2}/>
-                  <stop offset="95%" stopColor="#3ea8ff" stopOpacity={0}/>
+                  <stop offset="5%" stopColor="#1976d2" stopOpacity={0.15}/>
+                  <stop offset="95%" stopColor="#1976d2" stopOpacity={0}/>
                 </linearGradient>
               </defs>
-              <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="var(--border-subtle)" />
+              <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e5e7eb" />
               <XAxis 
                 dataKey="time" 
-                stroke="var(--text-muted)" 
+                stroke="#9aa0a6" 
                 fontSize={12} 
                 tickMargin={10}
                 angle={-45}
                 textAnchor="end"
               />
               <YAxis 
-                stroke="var(--text-muted)" 
+                stroke="#9aa0a6" 
                 fontSize={12} 
                 label={{ 
                   value: datapoints.find(dp => dp.name === selectedDp)?.unit ? `${selectedDp} (${datapoints.find(dp => dp.name === selectedDp)?.unit})` : selectedDp, 
                   angle: -90, 
                   position: 'insideLeft', 
-                  style: { textAnchor: 'middle', fill: 'var(--text-muted)', fontSize: 13, fontWeight: 600 },
+                  style: { textAnchor: 'middle', fill: '#9aa0a6', fontSize: 13, fontWeight: 600 },
                   offset: -5
                 }} 
               />
               <RechartsTooltip 
-                contentStyle={{ backgroundColor: 'var(--bg-card)', border: '1px solid var(--border-subtle)', borderRadius: '8px' }}
-                itemStyle={{ color: 'var(--text-primary)', fontWeight: 600 }}
+                contentStyle={{ backgroundColor: '#fff', border: '1px solid #e5e7eb', borderRadius: '8px', boxShadow: '0 4px 12px rgba(0,0,0,0.08)' }}
+                itemStyle={{ color: '#1a1a1a', fontWeight: 600 }}
               />
               <Area 
                 type="linear" 
                 dataKey="value" 
-                stroke="#3ea8ff" 
+                stroke="#1976d2" 
                 fillOpacity={1}
                 fill="url(#colorValue)"
                 strokeWidth={2} 
-                dot={{ r: 3, fill: '#3ea8ff', strokeWidth: 0 }}
+                dot={{ r: 3, fill: '#1976d2', strokeWidth: 0 }}
                 activeDot={{ r: 6, stroke: '#fff', strokeWidth: 2 }}
                 name={selectedDp}
                 animationDuration={500}
@@ -341,7 +374,7 @@ const HistoricalGraph: React.FC = () => {
                   dataKey="value" 
                   position="top" 
                   offset={10} 
-                  style={{ fontSize: '11px', fill: 'var(--text-primary)', fontWeight: 600 }} 
+                  style={{ fontSize: '11px', fill: '#1a1a1a', fontWeight: 600 }} 
                 />
               </Area>
             </AreaChart>

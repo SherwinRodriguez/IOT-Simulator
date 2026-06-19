@@ -66,7 +66,7 @@ const SimulatorConfig: React.FC = () => {
       </div>
 
       {error && (
-        <div style={{ display: 'flex', alignItems: 'center', gap: 10, background: 'rgba(239,68,68,0.1)', border: '1px solid rgba(239,68,68,0.3)', borderRadius: 10, padding: '12px 16px', marginBottom: 20, color: '#f87171', fontSize: 14 }}>
+        <div className="alert alert-error">
           <AlertCircle size={16} /> {error}
         </div>
       )}

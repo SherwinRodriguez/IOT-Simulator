@@ -41,6 +41,9 @@ public class DeviceEntity {
     @Column(name = "mqtt_client_id")
     private String mqttClientId;
 
+    @Column(name = "mqtt_broker_url")
+    private String mqttBrokerUrl;
+
     @Column(name = "mqtt_username")
     private String mqttUsername;
 

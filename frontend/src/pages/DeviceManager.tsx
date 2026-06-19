@@ -9,6 +9,7 @@ import {
   startSimulation, stopSimulation,
   pauseSimulation, resumeSimulation, deleteDevice,
 } from '../api';
+import { useAuth } from '../context/AuthContext';
 
 const DeviceManager: React.FC = () => {
   const [devices, setDevices] = useState<any[]>([]);
@@ -16,6 +17,9 @@ const DeviceManager: React.FC = () => {
   const [syncing, setSyncing] = useState(false);
   const [actionLoading, setActionLoading] = useState<string | null>(null);
   const [error, setError] = useState('');
+
+  const authContext = useAuth();
+  const isDemo = authContext?.user?.region === 'demo';
 
   const fetchDevices = async () => {
     try {
@@ -59,22 +63,24 @@ const DeviceManager: React.FC = () => {
       <div className="page-header">
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
           <div>
-            <h1 className="page-title">Devices</h1>
-            <p className="page-subtitle">Synced from your Zoho IoT account · {devices.length} device{devices.length !== 1 ? 's' : ''}</p>
+            <h1 className="page-title">
+              All Devices ({devices.length})
+            </h1>
+            <p className="page-subtitle">{isDemo ? 'Your Mock Devices for Demo Mode' : 'Synced from your Zoho IoT account'}</p>
           </div>
-          <button className="btn btn-cyan" onClick={handleSync} disabled={syncing}>
-            {syncing ? <RefreshCw size={15} style={{ animation: 'spin 0.7s linear infinite' }} /> : <RotateCcw size={15} />}
-            {syncing ? 'Syncing…' : 'Sync from Zoho'}
-          </button>
+          {!isDemo && (
+            <div style={{ display: 'flex', gap: 8 }}>
+              <button className="btn btn-secondary" onClick={handleSync} disabled={syncing}>
+                {syncing ? <RefreshCw size={14} style={{ animation: 'spin 0.7s linear infinite' }} /> : <RotateCcw size={14} />}
+                {syncing ? 'Syncing…' : 'Sync from Zoho'}
+              </button>
+            </div>
+          )}
         </div>
       </div>
 
       {error && (
-        <div style={{
-          display: 'flex', alignItems: 'center', gap: 10,
-          background: 'rgba(239,68,68,0.1)', border: '1px solid rgba(239,68,68,0.3)',
-          borderRadius: 10, padding: '12px 16px', marginBottom: 20, color: '#f87171', fontSize: 14,
-        }}>
+        <div className="alert alert-error">
           <AlertCircle size={16} /> {error}
         </div>
       )}
@@ -84,23 +90,32 @@ const DeviceManager: React.FC = () => {
           <div style={{ padding: 48, textAlign: 'center', color: 'var(--text-muted)' }}>Loading devices…</div>
         ) : devices.length === 0 ? (
           <div style={{ padding: 64, textAlign: 'center' }}>
-            <Cpu size={48} color="var(--text-muted)" style={{ margin: '0 auto 16px', display: 'block' }} />
+            <Cpu size={40} color="var(--text-muted)" style={{ margin: '0 auto 16px', display: 'block' }} />
             <p style={{ color: 'var(--text-primary)', fontWeight: 600, marginBottom: 8 }}>No devices found</p>
-            <p style={{ color: 'var(--text-muted)', fontSize: 14, marginBottom: 20 }}>
-              Click "Sync from Zoho" to import your IoT devices.
-            </p>
-            <button className="btn btn-cyan" onClick={handleSync} disabled={syncing}>
-              <RotateCcw size={14} /> Sync from Zoho
-            </button>
+            {!isDemo ? (
+              <>
+                <p style={{ color: 'var(--text-muted)', fontSize: 13, marginBottom: 16 }}>
+                  Click "Sync from Zoho" to import your IoT devices.
+                </p>
+                <button className="btn btn-primary" onClick={handleSync} disabled={syncing}>
+                  <RotateCcw size={14} /> Sync from Zoho
+                </button>
+              </>
+            ) : (
+              <p style={{ color: 'var(--text-muted)', fontSize: 13, marginBottom: 16 }}>
+                Log in again via Demo Mode to recreate your mock device.
+              </p>
+            )}
           </div>
         ) : (
           <table className="data-table">
             <thead>
               <tr>
-                <th>Device</th>
-                <th>Type</th>
-                <th>Topic</th>
+                <th>Name</th>
+                <th>Connection Status</th>
+                <th>Product</th>
                 <th>Status</th>
+                <th>Type</th>
                 <th style={{ textAlign: 'right' }}>Actions</th>
               </tr>
             </thead>
@@ -113,11 +128,16 @@ const DeviceManager: React.FC = () => {
                   <tr key={d.id}>
                     <td>
                       <div style={{ fontWeight: 600, color: 'var(--text-primary)', marginBottom: 2 }}>{d.name}</div>
-                      <div style={{ fontSize: 11, color: 'var(--text-muted)', fontFamily: 'monospace' }}>{d.zohoDeviceId}</div>
+                      <div style={{ fontSize: 11, color: 'var(--text-muted)' }}>{d.deviceType || 'SmartAgricultureModel'}</div>
                     </td>
-                    <td>{d.deviceType || '—'}</td>
-                    <td style={{ fontFamily: 'monospace', fontSize: 12, maxWidth: 200, overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                      {d.publishTopic || '—'}
+                    <td>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                        <span className={`conn-dot ${isRunning ? 'conn-dot-connected' : 'conn-dot-disconnected'}`} />
+                        <span style={{ fontSize: 13 }}>{isRunning ? 'Connected' : 'Disconnected'}</span>
+                      </div>
+                    </td>
+                    <td style={{ fontSize: 13, color: 'var(--text-secondary)' }}>
+                      {d.publishTopic ? d.publishTopic.split('/')[0] : '—'}
                     </td>
                     <td>
                       <span className={`badge ${
@@ -125,21 +145,16 @@ const DeviceManager: React.FC = () => {
                         : isPaused ? 'badge-amber'
                         : 'badge-gray'
                       }`}>
-                        <span className={`pulse-dot ${
-                          isRunning ? 'pulse-dot-green'
-                          : isPaused ? 'pulse-dot-amber'
-                          : 'pulse-dot-gray'
-                        }`} />
-                        {d.status}
+                        {isRunning ? 'Running' : isPaused ? 'Paused' : 'Stopped'}
                       </span>
                     </td>
+                    <td style={{ fontSize: 13, color: 'var(--text-secondary)' }}>Direct Endpoint</td>
                     <td>
                       <div style={{ display: 'flex', gap: 6, justifyContent: 'flex-end', alignItems: 'center' }}>
-                        {/* Start / Stop / Pause / Resume */}
                         {!isRunning && !isPaused && (
                           <button
-                            className="btn btn-primary"
-                            style={{ padding: '6px 12px', fontSize: 12 }}
+                            className="btn btn-success"
+                            style={{ padding: '5px 12px', fontSize: 12 }}
                             disabled={actionLoading === `${d.id}-start`}
                             onClick={() => handleAction(d.id, 'start')}
                           >
@@ -150,7 +165,7 @@ const DeviceManager: React.FC = () => {
                           <>
                             <button
                               className="btn btn-secondary"
-                              style={{ padding: '6px 12px', fontSize: 12 }}
+                              style={{ padding: '5px 12px', fontSize: 12 }}
                               disabled={!!actionLoading}
                               onClick={() => handleAction(d.id, 'pause')}
                             >
@@ -158,7 +173,7 @@ const DeviceManager: React.FC = () => {
                             </button>
                             <button
                               className="btn btn-danger"
-                              style={{ padding: '6px 12px', fontSize: 12 }}
+                              style={{ padding: '5px 12px', fontSize: 12 }}
                               disabled={!!actionLoading}
                               onClick={() => handleAction(d.id, 'stop')}
                             >
@@ -169,8 +184,8 @@ const DeviceManager: React.FC = () => {
                         {isPaused && (
                           <>
                             <button
-                              className="btn btn-primary"
-                              style={{ padding: '6px 12px', fontSize: 12 }}
+                              className="btn btn-success"
+                              style={{ padding: '5px 12px', fontSize: 12 }}
                               disabled={!!actionLoading}
                               onClick={() => handleAction(d.id, 'resume')}
                             >
@@ -178,7 +193,7 @@ const DeviceManager: React.FC = () => {
                             </button>
                             <button
                               className="btn btn-danger"
-                              style={{ padding: '6px 12px', fontSize: 12 }}
+                              style={{ padding: '5px 12px', fontSize: 12 }}
                               disabled={!!actionLoading}
                               onClick={() => handleAction(d.id, 'stop')}
                             >
@@ -187,19 +202,17 @@ const DeviceManager: React.FC = () => {
                           </>
                         )}
 
-                        {/* View detail */}
                         <Link
                           to={`/devices/${d.id}`}
                           className="btn btn-ghost"
-                          style={{ padding: '6px 10px', fontSize: 12 }}
+                          style={{ padding: '5px 8px', fontSize: 12 }}
                         >
                           <ChevronRight size={14} />
                         </Link>
 
-                        {/* Delete */}
                         <button
                           className="btn btn-danger"
-                          style={{ padding: '6px 10px', fontSize: 12 }}
+                          style={{ padding: '5px 8px', fontSize: 12 }}
                           disabled={!!actionLoading}
                           onClick={() => handleAction(d.id, 'delete')}
                         >
@@ -214,7 +227,6 @@ const DeviceManager: React.FC = () => {
           </table>
         )}
       </div>
-      <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
     </div>
   );
 };

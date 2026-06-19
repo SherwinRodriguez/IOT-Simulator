@@ -52,39 +52,83 @@ public class TelemetryHistoryController {
                 // Base URL: {api-domain}/iot/v1/datapoints/data
                 String baseUrl = zohoApiConfig.getIotBaseUrl(user.getRegion()) + "/iot/v1/datapoints/data";
                 
-                UriComponentsBuilder builder = UriComponentsBuilder.fromHttpUrl(baseUrl)
-                        .queryParam("datapoint_name", datapointName)
-                        .queryParam("source", device.getName())
-                        .queryParam("aggregation", aggregation)
-                        .queryParam("period", period);
-                        
-                if (timeGrouping != null && !timeGrouping.isBlank()) {
-                    builder.queryParam("time_grouping", timeGrouping);
+                if ("custom".equals(period) && startTime != null && endTime != null) {
+                    HttpHeaders headers = new HttpHeaders();
+                    headers.set("Authorization", "Zoho-oauthtoken " + accessToken);
+                    headers.set("Accept", "application/json");
+                    headers.set("Content-Type", "application/json");
+
+                    java.util.Map<String, Object> metric = new java.util.HashMap<>();
+                    metric.put("datapoint_names", java.util.List.of(datapointName));
+                    metric.put("instance_name", device.getName());
+                    if (aggregation != null && !aggregation.isBlank() && !"raw".equalsIgnoreCase(aggregation) && !"none".equalsIgnoreCase(aggregation)) {
+                        metric.put("aggregation", aggregation);
+                    }
+                    
+                    metric.put("period", "custom_range");
+                    
+                    // Format timestamps to yyyy-MM-dd'T'HH:mm:ss in GMT/UTC
+                    java.time.format.DateTimeFormatter formatter = java.time.format.DateTimeFormatter
+                            .ofPattern("yyyy-MM-dd'T'HH:mm:ss")
+                            .withZone(java.time.ZoneId.of("UTC"));
+                            
+                    java.util.Map<String, Object> fromObj = java.util.Map.of("value", formatter.format(java.time.Instant.ofEpochMilli(startTime)));
+                    java.util.Map<String, Object> toObj = java.util.Map.of("value", formatter.format(java.time.Instant.ofEpochMilli(endTime)));
+                    
+                    metric.put("custom_range", java.util.Map.of("from", fromObj, "to", toObj));
+                    if (timeGrouping != null && !timeGrouping.isBlank()) {
+                        metric.put("time_grouping", timeGrouping);
+                    }
+
+                    java.util.Map<String, Object> body = java.util.Map.of("metrics", java.util.List.of(metric));
+
+                    ResponseEntity<String> response = restTemplate.exchange(
+                            baseUrl,
+                            HttpMethod.POST,
+                            new HttpEntity<>(body, headers),
+                            String.class
+                    );
+
+                    org.slf4j.LoggerFactory.getLogger(TelemetryHistoryController.class)
+                            .info("Historical Telemetry POST Response: {}", response.getBody());
+
+                    return ResponseEntity.status(response.getStatusCode())
+                            .header(HttpHeaders.CONTENT_TYPE, "application/json")
+                            .body(response.getBody());
+                } else {
+                    UriComponentsBuilder builder = UriComponentsBuilder.fromHttpUrl(baseUrl)
+                            .queryParam("datapoint_name", datapointName)
+                            .queryParam("source", device.getName());
+                            
+                    if (aggregation != null && !aggregation.isBlank() && !"raw".equalsIgnoreCase(aggregation) && !"none".equalsIgnoreCase(aggregation)) {
+                        builder.queryParam("aggregation", aggregation);
+                    }
+                            
+                    if (!"custom".equals(period)) {
+                        builder.queryParam("period", period);
+                    }
+                    if (timeGrouping != null && !timeGrouping.isBlank()) {
+                        builder.queryParam("time_grouping", timeGrouping);
+                    }
+
+                    HttpHeaders headers = new HttpHeaders();
+                    headers.set("Authorization", "Zoho-oauthtoken " + accessToken);
+                    headers.set("Accept", "application/json");
+
+                    ResponseEntity<String> response = restTemplate.exchange(
+                            builder.toUriString(), 
+                            HttpMethod.GET, 
+                            new HttpEntity<>(headers), 
+                            String.class
+                    );
+
+                    org.slf4j.LoggerFactory.getLogger(TelemetryHistoryController.class)
+                            .info("Historical Telemetry GET Response: {}", response.getBody());
+
+                    return ResponseEntity.status(response.getStatusCode())
+                            .header(HttpHeaders.CONTENT_TYPE, "application/json")
+                            .body(response.getBody());
                 }
-                if (startTime != null) {
-                    builder.queryParam("start_time", startTime);
-                }
-                if (endTime != null) {
-                    builder.queryParam("end_time", endTime);
-                }
-
-                HttpHeaders headers = new HttpHeaders();
-                headers.set("Authorization", "Zoho-oauthtoken " + accessToken);
-                headers.set("Accept", "application/json");
-
-                ResponseEntity<String> response = restTemplate.exchange(
-                        builder.toUriString(), 
-                        HttpMethod.GET, 
-                        new HttpEntity<>(headers), 
-                        String.class
-                );
-
-                org.slf4j.LoggerFactory.getLogger(TelemetryHistoryController.class)
-                        .info("Historical Telemetry Response: {}", response.getBody());
-
-                return ResponseEntity.status(response.getStatusCode())
-                        .header(HttpHeaders.CONTENT_TYPE, "application/json")
-                        .body(response.getBody());
             } catch (Exception e) {
                 org.slf4j.LoggerFactory.getLogger(TelemetryHistoryController.class)
                         .error("Failed to fetch historical telemetry from Zoho", e);

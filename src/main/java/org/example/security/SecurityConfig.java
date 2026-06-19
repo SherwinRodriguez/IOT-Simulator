@@ -41,6 +41,7 @@ public class SecurityConfig {
             .csrf(csrf -> csrf.disable())
             .authorizeHttpRequests(auth -> auth
                 .requestMatchers("/oauth/**").permitAll()
+                .requestMatchers("/api/demo/**").permitAll()
                 .requestMatchers("/ws/**").permitAll()           // WebSocket handshake
                 .requestMatchers(HttpMethod.GET, "/actuator/health").permitAll()
                 .anyRequest().authenticated()

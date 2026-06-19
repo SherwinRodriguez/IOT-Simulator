@@ -9,10 +9,23 @@ export const api = axios.create({
   withCredentials: true, // Send session cookies
 });
 
+api.interceptors.response.use(
+  (response) => response,
+  (error) => {
+    if (error.response && (error.response.status === 401 || error.response.status === 403)) {
+      if (window.location.pathname !== '/login') {
+        window.location.href = '/login';
+      }
+    }
+    return Promise.reject(error);
+  }
+);
+
 // ─── Auth ──────────────────────────────────────────────────────────────────
-export const getLoginUrl   = (region = 'in') => api.get(`/oauth/login?region=${region}`);
+export const getLoginUrl    = (region = 'in') => api.get(`/oauth/login?region=${region}`);
 export const getCurrentUser = ()              => api.get('/oauth/me');
 export const logout         = ()              => api.post('/oauth/logout');
+export const startDemoMode  = (config: any)   => api.post('/api/auth/demo', config);
 
 // ─── Devices ───────────────────────────────────────────────────────────────
 export const getDevices      = ()                 => api.get('/api/devices');

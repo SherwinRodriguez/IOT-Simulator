@@ -31,8 +31,8 @@ const Dashboard: React.FC = () => {
     {
       label: 'Total Devices',
       value: stats?.totalDevices ?? '—',
-      icon: <Cpu size={20} color="var(--accent-cyan)" />,
-      color: 'stat-card-cyan',
+      icon: <Cpu size={20} color="var(--accent-blue)" />,
+      color: 'stat-card-blue',
     },
     {
       label: 'Active Simulations',
@@ -61,7 +61,7 @@ const Dashboard: React.FC = () => {
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
           <div>
             <h1 className="page-title">
-              Welcome back, {user?.displayName?.split(' ')[0] || 'User'} 👋
+              Welcome back, {user?.displayName?.split(' ')[0] || 'User'}
             </h1>
             <p className="page-subtitle">
               Zoho IoT Simulator Console · {user?.region?.toUpperCase()} Region
@@ -75,7 +75,7 @@ const Dashboard: React.FC = () => {
       </div>
 
       {/* Stat Cards */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 20, marginBottom: 32 }}>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 16, marginBottom: 24 }}>
         {statCards.map(({ label, value, icon, color }) => (
           <div key={label} className={`stat-card ${color}`}>
             {icon}
@@ -86,9 +86,9 @@ const Dashboard: React.FC = () => {
       </div>
 
       {/* Recent Devices */}
-      <div className="card">
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
-          <h2 style={{ fontSize: 18, fontWeight: 700, color: 'var(--text-primary)' }}>Recent Devices</h2>
+      <div className="card" style={{ padding: 0, overflow: 'hidden' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '16px 20px', borderBottom: '1px solid var(--border-subtle)' }}>
+          <h2 style={{ fontSize: 16, fontWeight: 600, color: 'var(--text-primary)' }}>Recent Devices</h2>
           <Link to="/devices" className="btn btn-ghost" style={{ fontSize: 13 }}>
             View All <ArrowRight size={14} />
           </Link>
@@ -135,7 +135,7 @@ const Dashboard: React.FC = () => {
                         {d.status}
                       </span>
                     </td>
-                    <td style={{ fontFamily: 'monospace', fontSize: 12 }}>{d.zohoDeviceId}</td>
+                    <td style={{ fontFamily: 'monospace', fontSize: 12, color: 'var(--text-muted)' }}>{d.zohoDeviceId}</td>
                     <td>
                       <Link to={`/devices/${d.id}`} className="btn btn-ghost" style={{ padding: '4px 10px', fontSize: 12 }}>
                         View <ArrowRight size={12} />

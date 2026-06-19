@@ -73,7 +73,7 @@ public class SimulationManagerService {
 
     @Transactional
     public synchronized void startSimulation(UUID deviceId) {
-        if (activeFutures.containsKey(deviceId)) {
+        if (activeSimulators.containsKey(deviceId)) {
             throw new IllegalStateException("Simulation already running for device " + deviceId);
         }
 
@@ -91,7 +91,7 @@ public class SimulationManagerService {
         DeviceSimulator simulator = new DeviceSimulator(
                 device,
                 configs,
-                defaultBroker,
+                device.getMqttBrokerUrl() != null ? device.getMqttBrokerUrl() : defaultBroker,
                 messagingTemplate,
                 this::persistTelemetry
         );
@@ -103,6 +103,27 @@ public class SimulationManagerService {
         device.setStatus("RUNNING");
         deviceRepository.save(device);
         log.info("[Manager] Started simulation for device {}", device.getName());
+    }
+
+    public synchronized void startTransientSimulation(DeviceEntity device, List<org.example.entity.SimulationConfigEntity> configs, String brokerUrl) {
+        if (activeSimulators.containsKey(device.getId())) {
+            throw new IllegalStateException("Simulation already running for device " + device.getId());
+        }
+
+        // For transient simulators, the password is provided raw, so no decryption needed
+        DeviceSimulator simulator = new DeviceSimulator(
+                device,
+                configs,
+                brokerUrl != null ? brokerUrl : defaultBroker,
+                messagingTemplate,
+                null // Do not persist telemetry for transient demo devices
+        );
+
+        Future<?> future = executor.submit(simulator);
+        activeFutures.put(device.getId(), future);
+        activeSimulators.put(device.getId(), simulator);
+
+        log.info("[Manager] Started transient simulation for device {}", device.getName());
     }
 
     // ─── Stop ─────────────────────────────────────────────────────────────────

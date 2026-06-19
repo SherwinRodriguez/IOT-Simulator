@@ -37,7 +37,7 @@ const Settings: React.FC = () => {
           <div style={{ display: 'flex', alignItems: 'center', gap: 16, paddingBottom: 20, borderBottom: '1px solid var(--border-subtle)' }}>
             <div style={{
               width: 64, height: 64,
-              background: 'linear-gradient(135deg, #8b5cf6, #06b6d4)',
+              background: 'var(--accent-blue)',
               borderRadius: '50%',
               display: 'flex', alignItems: 'center', justifyContent: 'center',
               fontSize: 24, fontWeight: 800, color: '#fff',
@@ -89,8 +89,8 @@ const Settings: React.FC = () => {
       </div>
 
       {/* Logout */}
-      <div className="card" style={{ maxWidth: 600, border: '1px solid rgba(239,68,68,0.2)' }}>
-        <h2 style={{ fontWeight: 700, fontSize: 16, marginBottom: 8, color: '#f87171' }}>Sign Out</h2>
+      <div className="card" style={{ maxWidth: 600, border: '1px solid #ef9a9a' }}>
+        <h2 style={{ fontWeight: 700, fontSize: 16, marginBottom: 8, color: 'var(--accent-red)' }}>Sign Out</h2>
         <p style={{ fontSize: 14, color: 'var(--text-muted)', marginBottom: 16 }}>
           This will revoke your Zoho access token and end your session.
         </p>

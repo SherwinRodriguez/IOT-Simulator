@@ -2,8 +2,9 @@ import React, { useEffect, useState } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import {
   ArrowLeft, RotateCcw, Settings, BarChart2,
-  Play, Square, PauseCircle, Tag
+  Play, Square, PauseCircle, Tag, ChevronRight, Info
 } from 'lucide-react';
+import { useAuth } from '../context/AuthContext';
 import {
   getDevice, getDatapoints,
   startSimulation, stopSimulation, pauseSimulation, resumeSimulation,
@@ -17,6 +18,10 @@ const DeviceDetail: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [syncing, setSyncing] = useState(false);
   const [actionBusy, setActionBusy] = useState(false);
+  const [activeTab, setActiveTab] = useState('overview');
+
+  const authContext = useAuth();
+  const isDemo = authContext?.user?.region === 'demo';
 
   const [newDp, setNewDp] = useState({ name: '', dataType: 'Numeric', unit: '', parsingKey: '' });
   const [showAddDp, setShowAddDp] = useState(false);
@@ -89,213 +94,282 @@ const DeviceDetail: React.FC = () => {
   const isRunning = device.status === 'RUNNING';
   const isPaused = device.status === 'PAUSED';
 
+  let tabs = [
+    { key: 'overview', label: 'Overview' },
+    { key: 'datapoints', label: 'Datapoints' },
+    { key: 'config', label: 'Config', to: `/devices/${id}/config` },
+    { key: 'data-explorer', label: 'Data Explorer', to: `/devices/${id}/graph` },
+    { key: 'historical', label: 'Historical', to: `/devices/${id}/historical` },
+  ];
+
+  if (isDemo) {
+    tabs = tabs.filter(t => t.key !== 'historical'); // "historical" fetches from zoho api
+  }
+
   return (
     <div className="fade-in">
-      {/* Header */}
-      <div className="page-header">
-        <button className="btn btn-ghost" style={{ marginBottom: 16 }} onClick={() => navigate('/devices')}>
-          <ArrowLeft size={14} /> Back to Devices
+      {/* Header with breadcrumb */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 16 }}>
+        <button className="btn btn-ghost" style={{ padding: '4px 8px' }} onClick={() => navigate('/devices')}>
+          <ArrowLeft size={14} />
         </button>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: 12 }}>
-          <div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 6 }}>
-              <h1 className="page-title">{device.name}</h1>
-              <span className={`badge ${isRunning ? 'badge-green' : isPaused ? 'badge-amber' : 'badge-gray'}`}>
-                <span className={`pulse-dot ${isRunning ? 'pulse-dot-green' : isPaused ? 'pulse-dot-amber' : 'pulse-dot-gray'}`} />
-                {device.status}
-              </span>
-            </div>
-            <p className="page-subtitle">
-              {device.deviceType} · {device.connectivity || 'MQTT'} · ID: <code style={{ fontFamily: 'monospace', fontSize: 12 }}>{device.zohoDeviceId}</code>
-            </p>
-          </div>
-          {/* Simulation controls */}
-          <div style={{ display: 'flex', gap: 8 }}>
-            {!isRunning && !isPaused && (
-              <button className="btn btn-primary" onClick={() => handleSim('start')} disabled={actionBusy}>
-                <Play size={14} /> Start Simulation
+        <span style={{ color: 'var(--text-muted)', fontSize: 13 }}>Devices</span>
+        <ChevronRight size={14} color="var(--text-muted)" />
+        <span style={{ fontSize: 14, fontWeight: 600, color: 'var(--text-primary)' }}>{device.name}</span>
+      </div>
+
+      {/* Tab Navigation */}
+      <div className="tab-bar">
+        {tabs.map(tab => (
+          tab.to ? (
+            <Link
+              key={tab.key}
+              to={tab.to}
+              className="tab-item"
+              style={{ textDecoration: 'none' }}
+            >
+              {tab.label}
+            </Link>
+          ) : (
+            <button
+              key={tab.key}
+              className={`tab-item ${activeTab === tab.key ? 'active' : ''}`}
+              onClick={() => setActiveTab(tab.key)}
+            >
+              {tab.label}
+            </button>
+          )
+        ))}
+
+        {/* Actions on the right side */}
+        <div style={{ marginLeft: 'auto', display: 'flex', gap: 8, paddingBottom: 8 }}>
+          {!isRunning && !isPaused && (
+            <button className="btn btn-success" onClick={() => handleSim('start')} disabled={actionBusy} style={{ fontSize: 12 }}>
+              <Play size={13} /> Start
+            </button>
+          )}
+          {isRunning && (
+            <>
+              <button className="btn btn-secondary" onClick={() => handleSim('pause')} disabled={actionBusy} style={{ fontSize: 12 }}>
+                <PauseCircle size={13} /> Pause
               </button>
-            )}
-            {isRunning && (
-              <>
-                <button className="btn btn-secondary" onClick={() => handleSim('pause')} disabled={actionBusy}>
-                  <PauseCircle size={14} /> Pause
-                </button>
-                <button className="btn btn-danger" onClick={() => handleSim('stop')} disabled={actionBusy}>
-                  <Square size={14} /> Stop
-                </button>
-              </>
-            )}
-            {isPaused && (
-              <>
-                <button className="btn btn-primary" onClick={() => handleSim('resume')} disabled={actionBusy}>
-                  <Play size={14} /> Resume
-                </button>
-                <button className="btn btn-danger" onClick={() => handleSim('stop')} disabled={actionBusy}>
-                  <Square size={14} /> Stop
-                </button>
-              </>
-            )}
-          </div>
+              <button className="btn btn-danger" onClick={() => handleSim('stop')} disabled={actionBusy} style={{ fontSize: 12 }}>
+                <Square size={13} /> Stop
+              </button>
+            </>
+          )}
+          {isPaused && (
+            <>
+              <button className="btn btn-success" onClick={() => handleSim('resume')} disabled={actionBusy} style={{ fontSize: 12 }}>
+                <Play size={13} /> Resume
+              </button>
+              <button className="btn btn-danger" onClick={() => handleSim('stop')} disabled={actionBusy} style={{ fontSize: 12 }}>
+                <Square size={13} /> Stop
+              </button>
+            </>
+          )}
         </div>
       </div>
 
-      {/* Quick links */}
-      <div style={{ display: 'flex', gap: 12, marginBottom: 28, flexWrap: 'wrap' }}>
-        <Link to={`/devices/${id}/graph`} className="btn btn-cyan">
-          <BarChart2 size={14} /> Live Graph
-        </Link>
-        <Link to={`/devices/${id}/historical`} className="btn btn-primary" style={{ backgroundColor: '#6366f1', color: '#fff', border: 'none' }}>
-          <BarChart2 size={14} /> Historical Graph
-        </Link>
-        <Link to={`/devices/${id}/config`} className="btn btn-secondary">
-          <Settings size={14} /> Simulator Config
-        </Link>
-      </div>
-
-      {/* MQTT Info */}
-      <div className="card" style={{ marginBottom: 24 }}>
-        <h2 style={{ fontWeight: 700, marginBottom: 16, fontSize: 16 }}>MQTT Connection</h2>
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(220px, 1fr))', gap: 16 }}>
-          {[
-            ['Client ID', device.mqttClientId],
-            ['Username', device.mqttUsername],
-            ['Publish Topic', device.publishTopic],
-            ['Last Synced', device.lastSyncedAt ? new Date(device.lastSyncedAt).toLocaleString() : 'Never'],
-          ].map(([label, val]) => (
-            <div key={label}>
-              <div style={{ fontSize: 11, color: 'var(--text-muted)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: 4 }}>{label}</div>
-              <div style={{ fontFamily: typeof val === 'string' && val?.includes('/') ? 'monospace' : 'inherit', fontSize: 13, color: 'var(--text-primary)', wordBreak: 'break-all' }}>
-                {val || '—'}
+      {/* Tab Content */}
+      {activeTab === 'overview' && (
+        <div>
+          {/* Info cards row */}
+          <div style={{ display: 'flex', gap: 16, marginBottom: 24, flexWrap: 'wrap' }}>
+            <div className="info-card">
+              <div className="info-card-label">Status</div>
+              <div>
+                <span className={`badge ${isRunning ? 'badge-green' : isPaused ? 'badge-amber' : 'badge-gray'}`}>
+                  {device.status}
+                </span>
               </div>
             </div>
-          ))}
-        </div>
-      </div>
+            <div className="info-card">
+              <div className="info-card-label">Device Type</div>
+              <div className="info-card-value">{device.deviceType || 'Direct Endpoint'}</div>
+              <div style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: 4 }}>Type</div>
+            </div>
+            <div className="info-card">
+              <div className="info-card-label">Connection</div>
+              <div className="info-card-value">{device.connectivity || 'MQTT'}</div>
+              <div style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: 4 }}>Protocol</div>
+            </div>
+            <div className="info-card">
+              <div className="info-card-label">Last Activity Time</div>
+              <div className="info-card-value">
+                {device.lastSyncedAt ? new Date(device.lastSyncedAt).toLocaleString() : '--'}
+              </div>
+            </div>
+          </div>
 
-      {/* Datapoints */}
-      <div className="card" style={{ padding: 0, overflow: 'hidden' }}>
-        <div style={{ padding: '20px 24px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid var(--border-subtle)', flexWrap: 'wrap', gap: 12 }}>
-          <h2 style={{ fontWeight: 700, fontSize: 16 }}>
-            Datapoints <span style={{ color: 'var(--text-muted)', fontSize: 14, fontWeight: 400 }}>({datapoints.length})</span>
-          </h2>
-          <div style={{ display: 'flex', gap: 8 }}>
-            <button className="btn btn-primary" onClick={() => setShowAddDp(!showAddDp)}>
-              + Add Datapoint
-            </button>
-            <button className="btn btn-secondary" onClick={handleSyncDp} disabled={syncing} style={{ fontSize: 13 }}>
-              {syncing ? <RotateCcw size={13} style={{ animation: 'spin 0.7s linear infinite' }} /> : <RotateCcw size={13} />}
-              Refresh
-            </button>
+          {/* MQTT Connection Info */}
+          <div className="card" style={{ marginBottom: 24 }}>
+            <h2 style={{ fontWeight: 600, marginBottom: 16, fontSize: 15 }}>MQTT Connection</h2>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(220px, 1fr))', gap: 16 }}>
+              {[
+                ['Client ID', device.mqttClientId],
+                ['Username', device.mqttUsername],
+                ['Publish Topic', device.publishTopic],
+                ['Zoho Device ID', device.zohoDeviceId],
+              ].map(([label, val]) => (
+                <div key={label}>
+                  <div style={{ fontSize: 11, color: 'var(--text-muted)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.4px', marginBottom: 4 }}>{label}</div>
+                  <div style={{ fontFamily: typeof val === 'string' && val?.includes('/') ? 'monospace' : 'inherit', fontSize: 13, color: 'var(--text-primary)', wordBreak: 'break-all' }}>
+                    {val || '—'}
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* Quick Links */}
+          <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap' }}>
+            <Link to={`/devices/${id}/graph`} className="btn btn-primary">
+              <BarChart2 size={14} /> Live Telemetry
+            </Link>
+            <Link to={`/devices/${id}/historical`} className="btn btn-secondary">
+              <BarChart2 size={14} /> Historical Data
+            </Link>
+            <Link to={`/devices/${id}/config`} className="btn btn-secondary">
+              <Settings size={14} /> Simulator Config
+            </Link>
           </div>
         </div>
+      )}
 
-        {showAddDp && (
-          <div style={{ padding: '16px 24px', backgroundColor: 'var(--bg-card)', borderBottom: '1px solid var(--border-subtle)' }}>
-            <form onSubmit={handleAddDp} style={{ display: 'flex', gap: 12, alignItems: 'center', flexWrap: 'wrap' }}>
-              <input
-                type="text"
-                placeholder="Datapoint Name (e.g. soil_temp)"
-                value={newDp.name}
-                onChange={e => setNewDp({ ...newDp, name: e.target.value })}
-                className="input"
-                style={{ flex: 1, minWidth: 200 }}
-                required
-              />
-              <select
-                value={newDp.dataType}
-                onChange={e => setNewDp({ ...newDp, dataType: e.target.value })}
-                className="input"
-                style={{ width: 120 }}
-              >
-                <option value="Numeric">Numeric</option>
-                <option value="string">String</option>
-                <option value="boolean">Boolean</option>
-              </select>
-              <input
-                type="text"
-                placeholder="Unit (e.g. °C)"
-                value={newDp.unit}
-                onChange={e => setNewDp({ ...newDp, unit: e.target.value })}
-                className="input"
-                style={{ width: 100 }}
-              />
-              <input
-                type="text"
-                placeholder="Parsing Key (e.g. temp)"
-                value={newDp.parsingKey}
-                onChange={e => setNewDp({ ...newDp, parsingKey: e.target.value })}
-                className="input"
-                style={{ width: 150 }}
-              />
-              <button type="submit" className="btn btn-primary" disabled={addingDp}>
-                {addingDp ? 'Adding...' : 'Save'}
+      {activeTab === 'datapoints' && (
+        <div>
+          {/* Datapoints header */}
+          <div className="section-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <h3 style={{ margin: 0 }}>Device Datapoints</h3>
+            <div style={{ display: 'flex', gap: 8 }}>
+              {!isDemo && (
+                <button className="btn btn-secondary" onClick={handleSyncDp} disabled={syncing}>
+                  <RotateCcw size={14} className={syncing ? 'spinning' : ''} />
+                  Fetch from Zoho
+                </button>
+              )}
+              <button className="btn btn-primary" onClick={() => setShowAddDp(true)}>
+                <Settings size={14} /> Add Datapoint
               </button>
-              <button type="button" className="btn btn-ghost" onClick={() => setShowAddDp(false)}>
-                Cancel
-              </button>
-            </form>
+            </div>
           </div>
-        )}
 
-        {datapoints.length === 0 ? (
-          <div style={{ padding: 40, textAlign: 'center', color: 'var(--text-muted)' }}>
-            <Tag size={32} style={{ margin: '0 auto 12px', display: 'block' }} />
-            No datapoints defined. Add one manually or click "Sync Defaults".
-          </div>
-        ) : (
-          <table className="data-table">
-            <thead>
-              <tr>
-                <th>Name</th>
-                <th>Parsing Key</th>
-                <th>Unit</th>
-                <th>Type</th>
-                <th>Pattern</th>
-                <th>Range</th>
-                <th>Interval</th>
-                <th style={{ textAlign: 'right' }}>Actions</th>
-              </tr>
-            </thead>
-            <tbody>
-              {datapoints.map((dp) => {
-                const cfg = dp.simulationConfig;
-                return (
-                  <tr key={dp.id}>
-                    <td style={{ fontWeight: 600, color: 'var(--text-primary)' }}>{dp.name}</td>
-                    <td style={{ fontFamily: 'monospace', color: 'var(--text-muted)' }}>{dp.parsingKey || '—'}</td>
-                    <td>{dp.unit || '—'}</td>
-                    <td><span className="badge badge-cyan">{dp.dataType}</span></td>
-                    <td>
-                      {cfg ? (
-                        <span className={`badge ${cfg.pattern === 'INCREMENTAL' ? 'badge-green' : cfg.pattern === 'DECREMENTAL' ? 'badge-red' : 'badge-cyan'}`}>
-                          {cfg.pattern}
-                        </span>
-                      ) : '—'}
-                    </td>
-                    <td style={{ fontFamily: 'monospace', fontSize: 12 }}>
-                      {cfg ? `${cfg.minValue} – ${cfg.maxValue}` : '—'}
-                    </td>
-                    <td style={{ fontSize: 12 }}>
-                      {cfg ? `${cfg.publishIntervalMs / 1000}s` : '—'}
-                    </td>
-                    <td style={{ textAlign: 'right' }}>
-                      <button
-                        className="btn btn-danger"
-                        style={{ padding: '4px 8px', fontSize: 11 }}
-                        onClick={() => handleDeleteDp(dp.id)}
-                      >
-                        Delete
-                      </button>
-                    </td>
+          {isDemo && (
+             <div style={{ marginBottom: 16, background: '#f8fafc', padding: '12px 16px', borderRadius: 8, border: '1px solid #e2e8f0', fontSize: 13, color: 'var(--text-secondary)' }}>
+                <Info size={14} style={{ display: 'inline', marginRight: 6, verticalAlign: '-2px' }} />
+                You are in Demo Mode. Datapoints are simulated locally and cannot be synchronized from Zoho.
+             </div>
+          )}
+
+          {showAddDp && (
+            <div className="card" style={{ marginBottom: 16, padding: 16 }}>
+              <form onSubmit={handleAddDp} style={{ display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap' }}>
+                <input
+                  type="text"
+                  placeholder="Datapoint Name"
+                  value={newDp.name}
+                  onChange={e => setNewDp({ ...newDp, name: e.target.value })}
+                  className="input"
+                  style={{ flex: 1, minWidth: 180 }}
+                  required
+                />
+                <select
+                  value={newDp.dataType}
+                  onChange={e => setNewDp({ ...newDp, dataType: e.target.value })}
+                  className="input"
+                  style={{ width: 110 }}
+                >
+                  <option value="Numeric">Numeric</option>
+                  <option value="string">String</option>
+                  <option value="boolean">Boolean</option>
+                </select>
+                <input
+                  type="text"
+                  placeholder="Unit (e.g. °C)"
+                  value={newDp.unit}
+                  onChange={e => setNewDp({ ...newDp, unit: e.target.value })}
+                  className="input"
+                  style={{ width: 90 }}
+                />
+                <input
+                  type="text"
+                  placeholder="Parsing Key"
+                  value={newDp.parsingKey}
+                  onChange={e => setNewDp({ ...newDp, parsingKey: e.target.value })}
+                  className="input"
+                  style={{ width: 130 }}
+                />
+                <button type="submit" className="btn btn-primary" disabled={addingDp} style={{ fontSize: 12 }}>
+                  {addingDp ? 'Adding...' : 'Save'}
+                </button>
+                <button type="button" className="btn btn-ghost" onClick={() => setShowAddDp(false)} style={{ fontSize: 12 }}>
+                  Cancel
+                </button>
+              </form>
+            </div>
+          )}
+
+          <div className="card" style={{ padding: 0, overflow: 'hidden' }}>
+            {datapoints.length === 0 ? (
+              <div style={{ padding: 40, textAlign: 'center', color: 'var(--text-muted)' }}>
+                <Tag size={28} style={{ margin: '0 auto 12px', display: 'block' }} />
+                No datapoints defined. Add one above or sync from Zoho.
+              </div>
+            ) : (
+              <table className="data-table">
+                <thead>
+                  <tr>
+                    <th>Name</th>
+                    <th>Parsing Key</th>
+                    <th>Unit</th>
+                    <th>Type</th>
+                    <th>Pattern</th>
+                    <th>Range</th>
+                    <th>Interval</th>
+                    <th style={{ textAlign: 'right' }}>Actions</th>
                   </tr>
-                );
-              })}
-            </tbody>
-          </table>
-        )}
-      </div>
-      <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
+                </thead>
+                <tbody>
+                  {datapoints.map((dp) => {
+                    const cfg = dp.simulationConfig;
+                    return (
+                      <tr key={dp.id}>
+                        <td style={{ fontWeight: 600, color: 'var(--text-primary)' }}>{dp.name}</td>
+                        <td style={{ fontFamily: 'monospace', color: 'var(--text-muted)', fontSize: 12 }}>{dp.parsingKey || '—'}</td>
+                        <td>{dp.unit || '—'}</td>
+                        <td><span className="badge badge-blue">{dp.dataType}</span></td>
+                        <td>
+                          {cfg ? (
+                            <span className={`badge ${cfg.pattern === 'INCREMENTAL' ? 'badge-green' : cfg.pattern === 'DECREMENTAL' ? 'badge-red' : 'badge-cyan'}`}>
+                              {cfg.pattern}
+                            </span>
+                          ) : '—'}
+                        </td>
+                        <td style={{ fontFamily: 'monospace', fontSize: 12 }}>
+                          {cfg ? `${cfg.minValue} – ${cfg.maxValue}` : '—'}
+                        </td>
+                        <td style={{ fontSize: 12 }}>
+                          {cfg ? `${cfg.publishIntervalMs / 1000}s` : '—'}
+                        </td>
+                        <td style={{ textAlign: 'right' }}>
+                          <button
+                            className="btn btn-danger"
+                            style={{ padding: '4px 8px', fontSize: 11 }}
+                            onClick={() => handleDeleteDp(dp.id)}
+                          >
+                            Delete
+                          </button>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            )}
+          </div>
+        </div>
+      )}
     </div>
   );
 };
