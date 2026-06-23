@@ -83,15 +83,28 @@ public class SimulationManagerService {
         // Fetch local simulation configs
         List<org.example.entity.SimulationConfigEntity> configs = simConfigRepository.findByDeviceId(deviceId);
 
-        // Decrypt MQTT password before passing to simulator
-        if (device.getMqttPassword() != null) {
-            device.setMqttPassword(encryptionService.decrypt(device.getMqttPassword()));
+        // Decrypt MQTT password into a local variable — do NOT write it back to the entity
+        // that will be saved, otherwise the DB gets the plaintext and future decrypts fail.
+        String mqttPassword = device.getMqttPassword();
+        if (mqttPassword != null) {
+            mqttPassword = encryptionService.decrypt(mqttPassword);
         }
 
+        // Create a transient copy with the decrypted password for the simulator
+        DeviceEntity simDevice = new DeviceEntity();
+        simDevice.setId(device.getId());
+        simDevice.setName(device.getName());
+        simDevice.setMqttClientId(device.getMqttClientId());
+        simDevice.setMqttUsername(device.getMqttUsername());
+        simDevice.setMqttPassword(mqttPassword);
+        simDevice.setPublishTopic(device.getPublishTopic());
+        simDevice.setMqttBrokerUrl(device.getMqttBrokerUrl());
+        simDevice.setStatus(device.getStatus());
+
         DeviceSimulator simulator = new DeviceSimulator(
-                device,
+                simDevice,
                 configs,
-                device.getMqttBrokerUrl() != null ? device.getMqttBrokerUrl() : defaultBroker,
+                simDevice.getMqttBrokerUrl() != null ? simDevice.getMqttBrokerUrl() : defaultBroker,
                 messagingTemplate,
                 this::persistTelemetry
         );
