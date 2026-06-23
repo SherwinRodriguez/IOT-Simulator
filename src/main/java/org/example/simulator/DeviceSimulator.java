@@ -13,7 +13,6 @@ import org.slf4j.LoggerFactory;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
 
 import java.time.Instant;
-import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -25,7 +24,8 @@ import java.util.concurrent.atomic.AtomicLong;
 /**
  * Per-device simulator thread.
  *
- * - Generates telemetry dynamically from SimulationConfig (no hardcoded datapoints).
+ * - Generates telemetry dynamically from SimulationConfig (no hardcoded
+ * datapoints).
  * - Publishes via MQTT using device credentials from Zoho.
  * - Pushes real-time telemetry to the WebSocket topic /topic/device/{deviceId}.
  * - Supports Pause / Resume via an AtomicBoolean flag.
@@ -56,14 +56,14 @@ public class DeviceSimulator implements Runnable {
     private static final int DEFAULT_INTERVAL_MS = 5000;
 
     public DeviceSimulator(DeviceEntity device,
-                           List<SimulationConfigEntity> simConfigs,
-                           String mqttBroker,
-                           SimpMessagingTemplate messagingTemplate,
-                           TelemetryPersistenceCallback persistCallback) {
-        this.device            = device;
-        this.mqttBroker        = mqttBroker;
+            List<SimulationConfigEntity> simConfigs,
+            String mqttBroker,
+            SimpMessagingTemplate messagingTemplate,
+            TelemetryPersistenceCallback persistCallback) {
+        this.device = device;
+        this.mqttBroker = mqttBroker;
         this.messagingTemplate = messagingTemplate;
-        this.persistCallback   = persistCallback;
+        this.persistCallback = persistCallback;
 
         // Initialize patterns from local SimulationConfigs
         for (SimulationConfigEntity cfg : simConfigs) {
@@ -87,8 +87,7 @@ public class DeviceSimulator implements Runnable {
                     device.getMqttClientId(),
                     device.getMqttUsername(),
                     device.getMqttPassword(),
-                    device.getPublishTopic()
-            );
+                    device.getPublishTopic());
             log.info("[{}] Simulator started", device.getName());
 
             while (!Thread.currentThread().isInterrupted()) {
@@ -96,7 +95,8 @@ public class DeviceSimulator implements Runnable {
                 while (paused.get() && !Thread.currentThread().isInterrupted()) {
                     Thread.sleep(200);
                 }
-                if (Thread.currentThread().isInterrupted()) break;
+                if (Thread.currentThread().isInterrupted())
+                    break;
 
                 // Generate telemetry
                 Map<String, Double> telemetry = generateTelemetry();
@@ -117,8 +117,7 @@ public class DeviceSimulator implements Runnable {
                         device.getName(),
                         telemetry,
                         Instant.now().toString(),
-                        count
-                );
+                        count);
                 messagingTemplate.convertAndSend("/topic/device/" + device.getId(), wsMsg);
 
                 // Persist for history API
@@ -137,7 +136,9 @@ public class DeviceSimulator implements Runnable {
             log.error("[{}] Simulator error: {}", device.getName(), e.getMessage(), e);
         } finally {
             if (publisher != null) {
-                try { publisher.disconnect(); } catch (Exception ex) {
+                try {
+                    publisher.disconnect();
+                } catch (Exception ex) {
                     log.warn("[{}] Error disconnecting MQTT: {}", device.getName(), ex.getMessage());
                 }
             }
@@ -146,15 +147,33 @@ public class DeviceSimulator implements Runnable {
 
     // ─── Pause / Resume ────────────────────────────────────────────────────────
 
-    public void pause()  { paused.set(true);  log.info("[{}] Paused",  device.getName()); }
-    public void resume() { paused.set(false); log.info("[{}] Resumed", device.getName()); }
-    public boolean isPaused() { return paused.get(); }
+    public void pause() {
+        paused.set(true);
+        log.info("[{}] Paused", device.getName());
+    }
+
+    public void resume() {
+        paused.set(false);
+        log.info("[{}] Resumed", device.getName());
+    }
+
+    public boolean isPaused() {
+        return paused.get();
+    }
 
     // ─── Telemetry Accessors ───────────────────────────────────────────────────
 
-    public Map<String, Object> getLatestTelemetry() { return Map.copyOf(latestTelemetry); }
-    public long getMessageCount()   { return messageCount.get(); }
-    public long getLastPublished()  { return lastPublishedMs; }
+    public Map<String, Object> getLatestTelemetry() {
+        return Map.copyOf(latestTelemetry);
+    }
+
+    public long getMessageCount() {
+        return messageCount.get();
+    }
+
+    public long getLastPublished() {
+        return lastPublishedMs;
+    }
 
     // ─── Private Helpers ───────────────────────────────────────────────────────
 
@@ -177,7 +196,9 @@ public class DeviceSimulator implements Runnable {
         return Math.round(value * 100.0) / 100.0;
     }
 
-    /** Callback interface so SimulationManagerService can inject persistence logic */
+    /**
+     * Callback interface so SimulationManagerService can inject persistence logic
+     */
     @FunctionalInterface
     public interface TelemetryPersistenceCallback {
         void persist(UUID deviceId, Map<String, Double> telemetry);

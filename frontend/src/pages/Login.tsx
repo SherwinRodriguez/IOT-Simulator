@@ -13,7 +13,7 @@ const REGIONS = [
 
 const Login: React.FC = () => {
   const [activeTab, setActiveTab] = useState<'zohologin' | 'demo'>('zohologin');
-  
+
   // Zoho Login State
   const [selectedRegion, setSelectedRegion] = useState('in');
   const [loading, setLoading] = useState(false);
@@ -48,7 +48,7 @@ const Login: React.FC = () => {
       setDemoError('Client ID is required');
       return;
     }
-    
+
     // Navigate directly to the new demo dashboard, passing config in state
     navigate('/demo', { state: { demoConfig } });
   };
@@ -87,7 +87,7 @@ const Login: React.FC = () => {
 
         {/* Tab selector */}
         <div style={{ display: 'flex', gap: 8, marginBottom: 16 }}>
-          <button 
+          <button
             onClick={() => setActiveTab('zohologin')}
             style={{
               flex: 1, padding: '12px 0', border: 'none', borderRadius: 8,
@@ -97,7 +97,7 @@ const Login: React.FC = () => {
             }}>
             Login with Zoho
           </button>
-          <button 
+          <button
             onClick={() => setActiveTab('demo')}
             style={{
               flex: 1, padding: '12px 0', border: 'none', borderRadius: 8,
@@ -206,9 +206,7 @@ const Login: React.FC = () => {
                 background: '#ecfdf5', border: '1px solid #10b981', color: '#047857',
                 padding: '12px', borderRadius: '8px', fontSize: '13px', marginBottom: '20px', lineHeight: 1.5
               }}>
-                <strong>Demo Mode:</strong> Enter your custom MQTT credentials. The simulator will publish telemetry directly to your broker without logging into Zoho. 
-                <br/><br/>
-                <em>Note: Please ensure your account has <strong>Temperature</strong> and <strong>Humidity</strong> datapoints enabled.</em>
+                <strong>Demo Mode:</strong> Enter your custom MQTT credentials. The simulator will publish telemetry directly to your broker without logging into Zoho.
               </div>
 
               {demoError && (
@@ -220,32 +218,32 @@ const Login: React.FC = () => {
               <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: '12px', marginBottom: '16px' }}>
                 <div>
                   <label style={{ display: 'block', fontSize: 13, fontWeight: 500, marginBottom: 6, color: 'var(--text-secondary)' }}>Broker URL</label>
-                  <input type="text" value={demoConfig.brokerUrl} onChange={e => setDemoConfig({...demoConfig, brokerUrl: e.target.value})} style={{ width: '100%', padding: '10px', borderRadius: '6px', border: '1px solid var(--border-subtle)' }} required />
+                  <input type="text" value={demoConfig.brokerUrl} onChange={e => setDemoConfig({ ...demoConfig, brokerUrl: e.target.value })} style={{ width: '100%', padding: '10px', borderRadius: '6px', border: '1px solid var(--border-subtle)' }} required />
                 </div>
                 <div>
                   <label style={{ display: 'block', fontSize: 13, fontWeight: 500, marginBottom: 6, color: 'var(--text-secondary)' }}>Port</label>
-                  <input type="text" value={demoConfig.brokerPort} onChange={e => setDemoConfig({...demoConfig, brokerPort: e.target.value})} style={{ width: '100%', padding: '10px', borderRadius: '6px', border: '1px solid var(--border-subtle)' }} required />
+                  <input type="text" value={demoConfig.brokerPort} onChange={e => setDemoConfig({ ...demoConfig, brokerPort: e.target.value })} style={{ width: '100%', padding: '10px', borderRadius: '6px', border: '1px solid var(--border-subtle)' }} required />
                 </div>
               </div>
 
               <div style={{ marginBottom: '16px' }}>
                 <label style={{ display: 'block', fontSize: 13, fontWeight: 500, marginBottom: 6, color: 'var(--text-secondary)' }}>Client ID / Device ID</label>
-                <input type="text" value={demoConfig.clientId} onChange={e => setDemoConfig({...demoConfig, clientId: e.target.value})} style={{ width: '100%', padding: '10px', borderRadius: '6px', border: '1px solid var(--border-subtle)' }} required placeholder="e.g. my-device-123" />
+                <input type="text" value={demoConfig.clientId} onChange={e => setDemoConfig({ ...demoConfig, clientId: e.target.value })} style={{ width: '100%', padding: '10px', borderRadius: '6px', border: '1px solid var(--border-subtle)' }} required placeholder="e.g. my-device-123" />
               </div>
 
               <div style={{ marginBottom: '16px' }}>
                 <label style={{ display: 'block', fontSize: 13, fontWeight: 500, marginBottom: 6, color: 'var(--text-secondary)' }}>Username (Hub ID / Auth)</label>
-                <input type="text" value={demoConfig.username} onChange={e => setDemoConfig({...demoConfig, username: e.target.value})} style={{ width: '100%', padding: '10px', borderRadius: '6px', border: '1px solid var(--border-subtle)' }} />
+                <input type="text" value={demoConfig.username} onChange={e => setDemoConfig({ ...demoConfig, username: e.target.value })} style={{ width: '100%', padding: '10px', borderRadius: '6px', border: '1px solid var(--border-subtle)' }} />
               </div>
 
               <div style={{ marginBottom: '16px' }}>
                 <label style={{ display: 'block', fontSize: 13, fontWeight: 500, marginBottom: 6, color: 'var(--text-secondary)' }}>Password / Device Token</label>
-                <input type="password" value={demoConfig.password} onChange={e => setDemoConfig({...demoConfig, password: e.target.value})} style={{ width: '100%', padding: '10px', borderRadius: '6px', border: '1px solid var(--border-subtle)' }} />
+                <input type="password" value={demoConfig.password} onChange={e => setDemoConfig({ ...demoConfig, password: e.target.value })} style={{ width: '100%', padding: '10px', borderRadius: '6px', border: '1px solid var(--border-subtle)' }} />
               </div>
 
               <div style={{ marginBottom: '24px' }}>
                 <label style={{ display: 'block', fontSize: 13, fontWeight: 500, marginBottom: 6, color: 'var(--text-secondary)' }}>Publish Topic (Optional)</label>
-                <input type="text" value={demoConfig.publishTopic} onChange={e => setDemoConfig({...demoConfig, publishTopic: e.target.value})} style={{ width: '100%', padding: '10px', borderRadius: '6px', border: '1px solid var(--border-subtle)' }} placeholder={`devices/${demoConfig.clientId || '{client_id}'}/telemetry`} />
+                <input type="text" value={demoConfig.publishTopic} onChange={e => setDemoConfig({ ...demoConfig, publishTopic: e.target.value })} style={{ width: '100%', padding: '10px', borderRadius: '6px', border: '1px solid var(--border-subtle)' }} placeholder={`devices/${demoConfig.clientId || '{client_id}'}/telemetry`} />
               </div>
               <div style={{ marginTop: 24 }}>
                 <button
