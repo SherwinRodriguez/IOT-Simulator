@@ -16,6 +16,59 @@ const CHART_COLORS = [
 
 const MAX_POINTS = 100;
 
+const ALL_PATTERNS = [
+  'RANDOM', 'INCREMENTAL', 'DECREMENTAL',
+  'DAILY_SINUSOIDAL', 'WEEKLY_SINUSOIDAL', 'GAUSSIAN_NOISE',
+  'ANOMALY_SPIKE', 'LINEAR_DRIFT', 'EXPONENTIAL_DECAY',
+  'RANDOM_WALK', 'MISSING_DATA', 'STEP_FUNCTION',
+  'SAWTOOTH', 'BURST_EVENT', 'PLATEAU_SHIFT',
+  'SEASONAL_COMPOSITE', 'CORRELATED',
+];
+
+// Patterns that use start value
+const USES_START = new Set([
+  'INCREMENTAL', 'DECREMENTAL', 'LINEAR_DRIFT', 'EXPONENTIAL_DECAY',
+  'RANDOM_WALK', 'STEP_FUNCTION', 'SAWTOOTH', 'CORRELATED',
+]);
+
+// Patterns that use step value
+const USES_STEP = new Set([
+  'INCREMENTAL', 'DECREMENTAL', 'LINEAR_DRIFT', 'EXPONENTIAL_DECAY',
+  'RANDOM_WALK', 'STEP_FUNCTION', 'SAWTOOTH',
+]);
+
+// Patterns that use min/max range
+const USES_RANGE = new Set([
+  'RANDOM', 'DAILY_SINUSOIDAL', 'WEEKLY_SINUSOIDAL', 'GAUSSIAN_NOISE',
+  'ANOMALY_SPIKE', 'RANDOM_WALK', 'MISSING_DATA', 'STEP_FUNCTION',
+  'SAWTOOTH', 'BURST_EVENT', 'PLATEAU_SHIFT', 'SEASONAL_COMPOSITE',
+  'CORRELATED',
+]);
+
+function getDatapointSummary(dp: DemoDatapoint): string {
+  const p = dp.pattern;
+  switch (p) {
+    case 'RANDOM':              return `Range: ${dp.min} to ${dp.max}`;
+    case 'INCREMENTAL':         return `Start: ${dp.start}, Step: +${dp.step}, Max: ${dp.max}`;
+    case 'DECREMENTAL':         return `Start: ${dp.start}, Step: -${dp.step}, Min: ${dp.min}`;
+    case 'DAILY_SINUSOIDAL':    return `Sine [${dp.min}, ${dp.max}] 24h period`;
+    case 'WEEKLY_SINUSOIDAL':   return `Sine [${dp.min}, ${dp.max}] 7d period`;
+    case 'GAUSSIAN_NOISE':      return `Gaussian [${dp.min}, ${dp.max}]`;
+    case 'ANOMALY_SPIKE':       return `Range: ${dp.min}-${dp.max}, 2% spike`;
+    case 'LINEAR_DRIFT':        return `Start: ${dp.start}, Drift: +${dp.step}/tick`;
+    case 'EXPONENTIAL_DECAY':   return `Start: ${dp.start}, Decay: ${dp.step}%`;
+    case 'RANDOM_WALK':         return `Walk ±${dp.step} in [${dp.min}, ${dp.max}]`;
+    case 'MISSING_DATA':        return `Range: ${dp.min}-${dp.max}, 10% gaps`;
+    case 'STEP_FUNCTION':       return `Stairs from ${dp.start}, +${dp.step}`;
+    case 'SAWTOOTH':            return `Ramp ${dp.min}→${dp.max}, step=${dp.step}`;
+    case 'BURST_EVENT':         return `Base: ${dp.min}, Burst→${dp.max}`;
+    case 'PLATEAU_SHIFT':       return `Plateaus in [${dp.min}, ${dp.max}]`;
+    case 'SEASONAL_COMPOSITE':  return `Composite [${dp.min}, ${dp.max}]`;
+    case 'CORRELATED':          return `Correlated [${dp.min}, ${dp.max}]`;
+    default:                    return `${p}`;
+  }
+}
+
 interface DemoDatapoint {
   id: string;
   name: string;
@@ -142,6 +195,10 @@ const DemoDashboard: React.FC = () => {
 
   if (!demoConfig) return null;
 
+  const showRange = USES_RANGE.has(dpPattern);
+  const showStart = USES_START.has(dpPattern);
+  const showStep  = USES_STEP.has(dpPattern);
+
   return (
     <div style={{ minHeight: '100vh', backgroundColor: '#f9fafb', display: 'flex', fontFamily: 'system-ui, -apple-system, sans-serif' }}>
       
@@ -179,9 +236,9 @@ const DemoDashboard: React.FC = () => {
               <div key={dp.id} style={{ padding: '12px', backgroundColor: '#f9fafb', border: '1px solid #e5e7eb', borderRadius: '8px', display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
                 <div>
                   <p style={{ fontSize: '14px', fontWeight: 500, color: '#111827', margin: 0 }}>{dp.name}</p>
-                  <p style={{ fontSize: '12px', color: '#6b7280', fontFamily: 'monospace', margin: '4px 0' }}>Key: {dp.parsingKey} | Type: {dp.pattern}</p>
+                  <p style={{ fontSize: '12px', color: '#6b7280', fontFamily: 'monospace', margin: '4px 0' }}>Key: {dp.parsingKey} | Type: {dp.pattern.replace(/_/g, ' ')}</p>
                   <p style={{ fontSize: '12px', color: '#9ca3af', margin: 0 }}>
-                    {dp.pattern === 'RANDOM' ? `Range: ${dp.min} to ${dp.max}` : `Start: ${dp.start}, Step: ${dp.step}`}
+                    {getDatapointSummary(dp)}
                   </p>
                 </div>
                 <button 
@@ -213,13 +270,13 @@ const DemoDashboard: React.FC = () => {
                 <div>
                   <label style={{ display: 'block', fontSize: '12px', fontWeight: 500, color: '#374151', marginBottom: '4px' }}>Pattern Type</label>
                   <select value={dpPattern} onChange={e => setDpPattern(e.target.value)} style={{ width: '100%', padding: '8px', fontSize: '14px', border: '1px solid #d1d5db', borderRadius: '6px', boxSizing: 'border-box' }}>
-                    <option value="RANDOM">Random</option>
-                    <option value="INCREMENTAL">Incremental</option>
-                    <option value="DECREMENTAL">Decremental</option>
+                    {ALL_PATTERNS.map(p => (
+                      <option key={p} value={p}>{p.replace(/_/g, ' ')}</option>
+                    ))}
                   </select>
                 </div>
                 
-                {dpPattern === 'RANDOM' ? (
+                {showRange && (
                   <div style={{ display: 'flex', gap: '8px' }}>
                     <div style={{ flex: 1 }}>
                       <label style={{ display: 'block', fontSize: '12px', fontWeight: 500, color: '#374151', marginBottom: '4px' }}>Min</label>
@@ -230,26 +287,46 @@ const DemoDashboard: React.FC = () => {
                       <input type="number" value={dpMax} onChange={e => setDpMax(Number(e.target.value))} style={{ width: '100%', padding: '8px', fontSize: '14px', border: '1px solid #d1d5db', borderRadius: '6px', boxSizing: 'border-box' }} />
                     </div>
                   </div>
-                ) : (
-                  <>
-                    <div style={{ display: 'flex', gap: '8px' }}>
+                )}
+
+                {showStart && (
+                  <div style={{ display: 'flex', gap: '8px' }}>
+                    <div style={{ flex: 1 }}>
+                      <label style={{ display: 'block', fontSize: '12px', fontWeight: 500, color: '#374151', marginBottom: '4px' }}>Start Value</label>
+                      <input type="number" value={dpStart} onChange={e => setDpStart(Number(e.target.value))} style={{ width: '100%', padding: '8px', fontSize: '14px', border: '1px solid #d1d5db', borderRadius: '6px', boxSizing: 'border-box' }} />
+                    </div>
+                    {showStep && (
                       <div style={{ flex: 1 }}>
-                        <label style={{ display: 'block', fontSize: '12px', fontWeight: 500, color: '#374151', marginBottom: '4px' }}>Start</label>
-                        <input type="number" value={dpStart} onChange={e => setDpStart(Number(e.target.value))} style={{ width: '100%', padding: '8px', fontSize: '14px', border: '1px solid #d1d5db', borderRadius: '6px', boxSizing: 'border-box' }} />
-                      </div>
-                      <div style={{ flex: 1 }}>
-                        <label style={{ display: 'block', fontSize: '12px', fontWeight: 500, color: '#374151', marginBottom: '4px' }}>Step</label>
+                        <label style={{ display: 'block', fontSize: '12px', fontWeight: 500, color: '#374151', marginBottom: '4px' }}>{dpPattern === 'EXPONENTIAL_DECAY' ? 'Decay %' : 'Step'}</label>
                         <input type="number" value={dpStep} onChange={e => setDpStep(Number(e.target.value))} style={{ width: '100%', padding: '8px', fontSize: '14px', border: '1px solid #d1d5db', borderRadius: '6px', boxSizing: 'border-box' }} />
                       </div>
-                    </div>
-                    <div style={{ display: 'flex', gap: '8px' }}>
-                      <div style={{ flex: 1 }}>
-                        <label style={{ display: 'block', fontSize: '12px', fontWeight: 500, color: '#374151', marginBottom: '4px' }}>{dpPattern === 'INCREMENTAL' ? 'Max Bound' : 'Min Bound'}</label>
-                        <input type="number" value={dpPattern === 'INCREMENTAL' ? dpMax : dpMin} onChange={e => dpPattern === 'INCREMENTAL' ? setDpMax(Number(e.target.value)) : setDpMin(Number(e.target.value))} style={{ width: '100%', padding: '8px', fontSize: '14px', border: '1px solid #d1d5db', borderRadius: '6px', boxSizing: 'border-box' }} />
-                      </div>
-                    </div>
-                  </>
+                    )}
+                  </div>
                 )}
+
+                {!showRange && !showStart && (
+                  <div style={{ display: 'flex', gap: '8px' }}>
+                    <div style={{ flex: 1 }}>
+                      <label style={{ display: 'block', fontSize: '12px', fontWeight: 500, color: '#374151', marginBottom: '4px' }}>Min</label>
+                      <input type="number" value={dpMin} onChange={e => setDpMin(Number(e.target.value))} style={{ width: '100%', padding: '8px', fontSize: '14px', border: '1px solid #d1d5db', borderRadius: '6px', boxSizing: 'border-box' }} />
+                    </div>
+                    <div style={{ flex: 1 }}>
+                      <label style={{ display: 'block', fontSize: '12px', fontWeight: 500, color: '#374151', marginBottom: '4px' }}>Max</label>
+                      <input type="number" value={dpMax} onChange={e => setDpMax(Number(e.target.value))} style={{ width: '100%', padding: '8px', fontSize: '14px', border: '1px solid #d1d5db', borderRadius: '6px', boxSizing: 'border-box' }} />
+                    </div>
+                  </div>
+                )}
+
+                {/* For INCREMENTAL/DECREMENTAL with range bound */}
+                {(dpPattern === 'INCREMENTAL' || dpPattern === 'DECREMENTAL') && (
+                  <div style={{ display: 'flex', gap: '8px' }}>
+                    <div style={{ flex: 1 }}>
+                      <label style={{ display: 'block', fontSize: '12px', fontWeight: 500, color: '#374151', marginBottom: '4px' }}>{dpPattern === 'INCREMENTAL' ? 'Max Bound' : 'Min Bound'}</label>
+                      <input type="number" value={dpPattern === 'INCREMENTAL' ? dpMax : dpMin} onChange={e => dpPattern === 'INCREMENTAL' ? setDpMax(Number(e.target.value)) : setDpMin(Number(e.target.value))} style={{ width: '100%', padding: '8px', fontSize: '14px', border: '1px solid #d1d5db', borderRadius: '6px', boxSizing: 'border-box' }} />
+                    </div>
+                  </div>
+                )}
+
                 <button 
                   onClick={handleAddDatapoint}
                   disabled={!dpName || !dpKey}
@@ -320,6 +397,7 @@ const DemoDashboard: React.FC = () => {
                       dot={false}
                       activeDot={{ r: 6, strokeWidth: 0 }}
                       isAnimationActive={false}
+                      connectNulls={false}
                     />
                   ))}
                 </LineChart>

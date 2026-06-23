@@ -3,7 +3,54 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { ArrowLeft, Save, AlertCircle } from 'lucide-react';
 import { getDatapoints, updateSimConfig } from '../api';
 
-const PATTERNS = ['RANDOM', 'INCREMENTAL', 'DECREMENTAL'];
+const PATTERNS = [
+  'RANDOM', 'INCREMENTAL', 'DECREMENTAL',
+  'DAILY_SINUSOIDAL', 'WEEKLY_SINUSOIDAL', 'GAUSSIAN_NOISE',
+  'ANOMALY_SPIKE', 'LINEAR_DRIFT', 'EXPONENTIAL_DECAY',
+  'RANDOM_WALK', 'MISSING_DATA', 'STEP_FUNCTION',
+  'SAWTOOTH', 'BURST_EVENT', 'PLATEAU_SHIFT',
+  'SEASONAL_COMPOSITE', 'CORRELATED',
+];
+
+// Patterns that use startValue
+const USES_START = new Set([
+  'INCREMENTAL', 'DECREMENTAL', 'LINEAR_DRIFT', 'EXPONENTIAL_DECAY',
+  'RANDOM_WALK', 'STEP_FUNCTION', 'SAWTOOTH', 'CORRELATED',
+]);
+
+// Patterns that use stepValue
+const USES_STEP = new Set([
+  'INCREMENTAL', 'DECREMENTAL', 'LINEAR_DRIFT', 'EXPONENTIAL_DECAY',
+  'RANDOM_WALK', 'STEP_FUNCTION', 'SAWTOOTH',
+]);
+
+function getPreview(cfg: any): string {
+  const p = cfg.pattern || 'RANDOM';
+  const min = cfg.minValue ?? 0;
+  const max = cfg.maxValue ?? 100;
+  const start = cfg.startValue ?? 0;
+  const step = cfg.stepValue ?? 1;
+  switch (p) {
+    case 'RANDOM':              return `random(${min}, ${max})`;
+    case 'INCREMENTAL':         return `${start} → +${step} → max(${max})`;
+    case 'DECREMENTAL':         return `${start} → -${step} → min(${min})`;
+    case 'DAILY_SINUSOIDAL':    return `sine wave [${min}, ${max}] period=24h`;
+    case 'WEEKLY_SINUSOIDAL':   return `sine wave [${min}, ${max}] period=7d`;
+    case 'GAUSSIAN_NOISE':      return `gaussian μ=${((min+max)/2).toFixed(1)} σ=${((max-min)/6).toFixed(1)}`;
+    case 'ANOMALY_SPIKE':       return `random(${min}, ${max}) + 2% spike to ${max * 2}`;
+    case 'LINEAR_DRIFT':        return `${start} → +${step}/tick (no cap)`;
+    case 'EXPONENTIAL_DECAY':   return `${start} → decay ${step}%/tick → floor(${min})`;
+    case 'RANDOM_WALK':         return `walk ±${step} from ${start} in [${min}, ${max}]`;
+    case 'MISSING_DATA':        return `random(${min}, ${max}) + 10% NaN`;
+    case 'STEP_FUNCTION':       return `staircase ${start} → +${step} every 10 ticks`;
+    case 'SAWTOOTH':            return `ramp ${min}→${max} step=${step}, reset`;
+    case 'BURST_EVENT':         return `baseline(${min}), 5% burst→${max}`;
+    case 'PLATEAU_SHIFT':       return `hold random [${min},${max}] for 20-50 ticks`;
+    case 'SEASONAL_COMPOSITE':  return `daily+weekly sine + noise [${min}, ${max}]`;
+    case 'CORRELATED':          return `0.95×prev + 0.05×rand(${min},${max})`;
+    default:                    return p;
+  }
+}
 
 const SimulatorConfig: React.FC = () => {
   const { id } = useParams<{ id: string }>();
@@ -83,6 +130,7 @@ const SimulatorConfig: React.FC = () => {
             const cfg = configs[dp.id] || {};
             const isSaving = saving === dp.id;
             const wasSaved = saved  === dp.id;
+            const pat = cfg.pattern || 'RANDOM';
             return (
               <div key={dp.id} className="card">
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 20 }}>
@@ -107,10 +155,10 @@ const SimulatorConfig: React.FC = () => {
                     <label>Pattern</label>
                     <select
                       className="input"
-                      value={cfg.pattern || 'RANDOM'}
+                      value={pat}
                       onChange={e => handleChange(dp.id, 'pattern', e.target.value)}
                     >
-                      {PATTERNS.map(p => <option key={p} value={p}>{p}</option>)}
+                      {PATTERNS.map(p => <option key={p} value={p}>{p.replace(/_/g, ' ')}</option>)}
                     </select>
                   </div>
 
@@ -134,8 +182,8 @@ const SimulatorConfig: React.FC = () => {
                     />
                   </div>
 
-                  {/* Start Value */}
-                  {(cfg.pattern === 'INCREMENTAL' || cfg.pattern === 'DECREMENTAL') && (
+                  {/* Start Value — shown for patterns that use it */}
+                  {USES_START.has(pat) && (
                     <div className="form-group">
                       <label>Start Value</label>
                       <input
@@ -146,10 +194,10 @@ const SimulatorConfig: React.FC = () => {
                     </div>
                   )}
 
-                  {/* Step Value */}
-                  {(cfg.pattern === 'INCREMENTAL' || cfg.pattern === 'DECREMENTAL') && (
+                  {/* Step Value — shown for patterns that use it */}
+                  {USES_STEP.has(pat) && (
                     <div className="form-group">
-                      <label>Step Value</label>
+                      <label>{pat === 'EXPONENTIAL_DECAY' ? 'Decay % per tick' : 'Step Value'}</label>
                       <input
                         type="number" step="0.1" className="input"
                         value={cfg.stepValue ?? 1}
@@ -171,12 +219,7 @@ const SimulatorConfig: React.FC = () => {
 
                 {/* Preview */}
                 <div style={{ marginTop: 16, padding: '10px 14px', background: 'var(--bg-elevated)', borderRadius: 8, fontSize: 12, color: 'var(--text-muted)', fontFamily: 'monospace' }}>
-                  Preview: {cfg.pattern === 'RANDOM'
-                    ? `random(${cfg.minValue ?? 0}, ${cfg.maxValue ?? 100})`
-                    : cfg.pattern === 'INCREMENTAL'
-                    ? `${cfg.startValue ?? 0} → +${cfg.stepValue ?? 1} → max(${cfg.maxValue ?? 100})`
-                    : `${cfg.startValue ?? 100} → -${cfg.stepValue ?? 1} → min(${cfg.minValue ?? 0})`}
-                  {' '}every {(cfg.publishIntervalMs ?? 5000) / 1000}s
+                  Preview: {getPreview(cfg)} every {(cfg.publishIntervalMs ?? 5000) / 1000}s
                 </div>
               </div>
             );
@@ -188,3 +231,5 @@ const SimulatorConfig: React.FC = () => {
 };
 
 export default SimulatorConfig;
+
+
