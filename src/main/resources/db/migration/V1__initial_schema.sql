@@ -1,6 +1,4 @@
 -- V1: Initial Zoho IoT Platform Schema
--- Replaces H2/legacy schema with PostgreSQL-native types
-
 -- Enable UUID extension
 CREATE EXTENSION IF NOT EXISTS "pgcrypto";
 
@@ -62,7 +60,7 @@ CREATE INDEX idx_datapoints_device_id ON datapoints(device_id);
 CREATE TABLE simulation_configs (
     id                   UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     datapoint_id         UUID NOT NULL UNIQUE REFERENCES datapoints(id) ON DELETE CASCADE,
-    pattern              VARCHAR(20) NOT NULL DEFAULT 'RANDOM',  -- RANDOM|INCREMENTAL|DECREMENTAL
+    pattern              VARCHAR(20) NOT NULL DEFAULT 'RANDOM',
     min_value            DOUBLE PRECISION NOT NULL DEFAULT 0,
     max_value            DOUBLE PRECISION NOT NULL DEFAULT 100,
     start_value          DOUBLE PRECISION NOT NULL DEFAULT 0,

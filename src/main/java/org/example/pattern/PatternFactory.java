@@ -32,7 +32,7 @@ public class PatternFactory {
             case "PLATEAU_SHIFT"      -> new PlateauShiftPattern(min, max);
             case "SEASONAL_COMPOSITE" -> new SeasonalCompositePattern(min, max);
             case "CORRELATED"         -> new CorrelatedPattern(start, min, max);
-            default                   -> new RandomPattern(min, max); // RANDOM
+            default                   -> new RandomPattern(min, max);
         };
     }
 }
