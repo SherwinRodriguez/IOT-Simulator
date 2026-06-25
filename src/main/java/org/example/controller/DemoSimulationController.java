@@ -31,9 +31,7 @@ public class DemoSimulationController {
         if (req.clientId == null || req.clientId.isEmpty()) {
             return ResponseEntity.badRequest().body(Map.of("message", "Client ID is required"));
         }
-        if (req.brokerUrl == null || req.brokerUrl.isEmpty()) {
-            return ResponseEntity.badRequest().body(Map.of("message", "Broker URL is required"));
-        }
+        // brokerUrl is optional — if not provided, SimulationManagerService will fall back to the system default broker
 
         // Create a transient DeviceEntity (NOT saved to DB)
         DeviceEntity device = new DeviceEntity();

@@ -20,7 +20,8 @@ const Login: React.FC = () => {
 
   // Demo Login State
   const [demoConfig, setDemoConfig] = useState({
-    brokerUrl: 'tcp://60863cfqlp.zohoiothub.in:1883',
+    brokerProtocol: 'tcp',
+    brokerHost: '',
     brokerPort: '1883',
     clientId: '',
     username: '',
@@ -49,8 +50,13 @@ const Login: React.FC = () => {
       return;
     }
 
+    // Combine protocol + host + port into a full broker URL
+    const brokerUrl = demoConfig.brokerHost
+      ? `${demoConfig.brokerProtocol}://${demoConfig.brokerHost}:${demoConfig.brokerPort}`
+      : '';
+
     // Navigate directly to the new demo dashboard, passing config in state
-    navigate('/demo', { state: { demoConfig } });
+    navigate('/demo', { state: { demoConfig: { ...demoConfig, brokerUrl } } });
   };
 
   return (
@@ -215,14 +221,35 @@ const Login: React.FC = () => {
                 </div>
               )}
 
-              <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: '12px', marginBottom: '16px' }}>
-                <div>
-                  <label style={{ display: 'block', fontSize: 13, fontWeight: 500, marginBottom: 6, color: 'var(--text-secondary)' }}>Broker URL</label>
-                  <input type="text" value={demoConfig.brokerUrl} onChange={e => setDemoConfig({ ...demoConfig, brokerUrl: e.target.value })} style={{ width: '100%', padding: '10px', borderRadius: '6px', border: '1px solid var(--border-subtle)' }} required />
+              <div style={{ marginBottom: '16px' }}>
+                <label style={{ display: 'block', fontSize: 13, fontWeight: 500, marginBottom: 6, color: 'var(--text-secondary)' }}>Broker</label>
+                <div style={{ display: 'grid', gridTemplateColumns: 'auto 1fr auto', gap: '8px', alignItems: 'center' }}>
+                  <select
+                    value={demoConfig.brokerProtocol}
+                    onChange={e => setDemoConfig({ ...demoConfig, brokerProtocol: e.target.value })}
+                    style={{ padding: '10px 8px', borderRadius: '6px', border: '1px solid var(--border-subtle)', background: 'var(--bg-secondary)', color: 'var(--text-primary)', fontSize: 13 }}
+                  >
+                    <option value="tcp">tcp://</option>
+                    <option value="ssl">ssl://</option>
+                    <option value="ws">ws://</option>
+                  </select>
+                  <input
+                    type="text"
+                    value={demoConfig.brokerHost}
+                    onChange={e => setDemoConfig({ ...demoConfig, brokerHost: e.target.value })}
+                    style={{ width: '100%', padding: '10px', borderRadius: '6px', border: '1px solid var(--border-subtle)' }}
+                    placeholder="your-hub.zohoiothub.in"
+                  />
+                  <input
+                    type="text"
+                    value={demoConfig.brokerPort}
+                    onChange={e => setDemoConfig({ ...demoConfig, brokerPort: e.target.value })}
+                    style={{ width: '80px', padding: '10px', borderRadius: '6px', border: '1px solid var(--border-subtle)' }}
+                    placeholder="1883"
+                  />
                 </div>
-                <div>
-                  <label style={{ display: 'block', fontSize: 13, fontWeight: 500, marginBottom: 6, color: 'var(--text-secondary)' }}>Port</label>
-                  <input type="text" value={demoConfig.brokerPort} onChange={e => setDemoConfig({ ...demoConfig, brokerPort: e.target.value })} style={{ width: '100%', padding: '10px', borderRadius: '6px', border: '1px solid var(--border-subtle)' }} required />
+                <div style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 4 }}>
+                  Will connect as: <code style={{ fontSize: 11 }}>{demoConfig.brokerProtocol}://{demoConfig.brokerHost || 'your-host'}:{demoConfig.brokerPort}</code>
                 </div>
               </div>
 

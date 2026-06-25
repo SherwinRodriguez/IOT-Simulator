@@ -223,7 +223,7 @@ const DemoDashboard: React.FC = () => {
           <div style={{ marginBottom: '24px', padding: '12px', backgroundColor: '#eff6ff', borderRadius: '8px', border: '1px solid #dbeafe' }}>
             <h3 style={{ fontSize: '12px', fontWeight: 600, color: '#1e40af', textTransform: 'uppercase', marginBottom: '8px', margin: 0 }}>MQTT Connection</h3>
             <div style={{ fontSize: '14px', color: '#1e3a8a', lineHeight: 1.5 }}>
-              <p style={{ margin: '4px 0' }}><strong>Broker:</strong> {demoConfig.brokerUrl}:{demoConfig.brokerPort}</p>
+              <p style={{ margin: '4px 0' }}><strong>Broker:</strong> {demoConfig.brokerUrl || 'System Default'}</p>
               <p style={{ margin: '4px 0', wordBreak: 'break-all' }}><strong>Client ID:</strong> {demoConfig.clientId}</p>
               <p style={{ margin: '4px 0', wordBreak: 'break-all' }}><strong>Topic:</strong> {demoConfig.publishTopic || `devices/${demoConfig.clientId}/telemetry`}</p>
             </div>
