@@ -128,7 +128,9 @@ const DeviceManager: React.FC = () => {
                   <tr key={d.id}>
                     <td>
                       <div style={{ fontWeight: 600, color: 'var(--text-primary)', marginBottom: 2 }}>{d.name}</div>
-                      <div style={{ fontSize: 11, color: 'var(--text-muted)' }}>{d.deviceType || 'SmartAgricultureModel'}</div>
+                      <div style={{ fontSize: 11, color: 'var(--text-muted)' }}>
+                        {d.connectivity ? d.connectivity : (d.deviceType || '—')}
+                      </div>
                     </td>
                     <td>
                       <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
@@ -148,7 +150,9 @@ const DeviceManager: React.FC = () => {
                         {isRunning ? 'Running' : isPaused ? 'Paused' : 'Stopped'}
                       </span>
                     </td>
-                    <td style={{ fontSize: 13, color: 'var(--text-secondary)' }}>Direct Endpoint</td>
+                    <td style={{ fontSize: 13, color: 'var(--text-secondary)' }}>
+                      {d.deviceType || 'Direct Endpoint'}
+                    </td>
                     <td>
                       <div style={{ display: 'flex', gap: 6, justifyContent: 'flex-end', alignItems: 'center' }}>
                         {!isRunning && !isPaused && (
