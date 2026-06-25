@@ -72,14 +72,16 @@ public class DatapointController {
 
                 log.info("RAW DATAPOINT RESPONSE: {}", response.getBody());
 
-                JsonNode root = objectMapper.readTree(response.getBody());
-                JsonNode dpNodes = root.has("datapointdefinitions") ? root.get("datapointdefinitions")
-                        : root.get("data");
-
                 List<SimulationConfigEntity> localConfigs = simConfigRepository.findByDeviceId(deviceId);
-
                 List<Map<String, Object>> result = new ArrayList<>();
-                if (dpNodes != null && dpNodes.isArray()) {
+
+                String body = response.getBody();
+                if (body != null && !body.trim().isEmpty()) {
+                    JsonNode root = objectMapper.readTree(body);
+                    JsonNode dpNodes = root.has("datapointdefinitions") ? root.get("datapointdefinitions")
+                            : root.get("data");
+
+                    if (dpNodes != null && dpNodes.isArray()) {
                     for (JsonNode dp : dpNodes) {
                         String id = dp.has("id") ? dp.get("id").asText() : UUID.randomUUID().toString();
                         String name = dp.has("datapoint_name") ? dp.get("datapoint_name").asText() : "Unknown";
@@ -123,6 +125,7 @@ public class DatapointController {
 
                         result.add(dpObj);
                     }
+                }
                 }
 
                 return ResponseEntity.ok(result);
@@ -172,7 +175,7 @@ public class DatapointController {
                 ObjectNode infoObj = parentModel.putObject("info");
                 infoObj.put("id", device.getZohoModelId());
                 ObjectNode moduleObj = infoObj.putObject("module");
-                moduleObj.put("api_name", "models");
+                moduleObj.put("api_name", "devices");
                 parentModel.put("type", "model");
                 dpDef.put("parent_type", "model");
 
@@ -181,9 +184,14 @@ public class DatapointController {
                         + device.getZohoModelId();
                 ResponseEntity<String> dpListResp = restTemplate.exchange(dpListUrl, HttpMethod.GET,
                         new HttpEntity<>(headers), String.class);
-                JsonNode dpListRoot = objectMapper.readTree(dpListResp.getBody());
-                JsonNode dpNodes = dpListRoot.has("datapointdefinitions") ? dpListRoot.get("datapointdefinitions")
-                        : dpListRoot.get("data");
+                
+                String body = dpListResp.getBody();
+                JsonNode dpNodes = null;
+                if (body != null && !body.trim().isEmpty()) {
+                    JsonNode dpListRoot = objectMapper.readTree(body);
+                    dpNodes = dpListRoot.has("datapointdefinitions") ? dpListRoot.get("datapointdefinitions")
+                            : dpListRoot.get("data");
+                }
 
                 String kindId = null;
                 if (dpNodes != null && dpNodes.isArray()) {
@@ -201,10 +209,43 @@ public class DatapointController {
                     }
                 }
 
-                if (kindId != null) {
-                    ObjectNode kindObj = dpDef.putObject("kind");
-                    kindObj.put("id", kindId);
+                if (kindId == null) {
+                    // Try fetching from kinds API
+                    try {
+                        // First try: query all datapointdefinitions (no model filter) to find any kind ID
+                        String allDpUrl = zohoApiConfig.getIotBaseUrl(user.getRegion()) + "/iot/v1/datapointdefinitions";
+                        ResponseEntity<String> allDpResp = restTemplate.exchange(allDpUrl, HttpMethod.GET, new HttpEntity<>(headers), String.class);
+                        if (allDpResp.getBody() != null) {
+                            JsonNode allRoot = objectMapper.readTree(allDpResp.getBody());
+                            JsonNode allNodes = allRoot.has("datapointdefinitions") ? allRoot.get("datapointdefinitions") : allRoot.get("data");
+                            if (allNodes != null && allNodes.isArray()) {
+                                for (JsonNode n : allNodes) {
+                                    if (n.has("data_type") && n.get("data_type").asText().equalsIgnoreCase(mappedDataType)
+                                            && n.has("kind") && n.get("kind").has("id")) {
+                                        kindId = n.get("kind").get("id").asText();
+                                        break;
+                                    }
+                                }
+                                // If still no match for data type, take any kind
+                                if (kindId == null) {
+                                    for (JsonNode n : allNodes) {
+                                        if (n.has("kind") && n.get("kind").has("id")) {
+                                            kindId = n.get("kind").get("id").asText();
+                                            break;
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    } catch (Exception ex) {
+                        log.warn("Failed to fetch all datapointdefinitions for kind lookup: {}", ex.getMessage());
+                    }
                 }
+
+                if (kindId != null) {
+                    dpDef.putObject("kind").put("id", kindId);
+                }
+                // If no kindId found, omit kind entirely — Zoho will use default
 
                 ObjectNode pkObj = dpDef.putObject("parsing_key_object");
                 pkObj.put("parsing_type", "direct");
@@ -219,6 +260,15 @@ public class DatapointController {
                 }
 
                 log.info("Sending Datapoint Payload to Zoho: {}", root.toPrettyString());
+
+                ResponseEntity<String> createResponse = restTemplate.exchange(
+                        url,
+                        HttpMethod.POST,
+                        new HttpEntity<>(root.toString(), headers),
+                        String.class
+                );
+                
+                log.info("Zoho Create Datapoint Response: {}", createResponse.getBody());
 
                 // Initialize local simulation config
                 SimulationConfigEntity config = simConfigRepository.findByDeviceIdAndParsingKey(deviceId, pKey)
