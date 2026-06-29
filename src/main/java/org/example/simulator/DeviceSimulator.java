@@ -51,6 +51,7 @@ public class DeviceSimulator implements Runnable {
 
     private MqttPublisher publisher;
     private final Gson gson = new Gson();
+    private final AtomicBoolean stopRequested = new AtomicBoolean(false);
 
     /** Default interval in ms if no config present */
     private static final int DEFAULT_INTERVAL_MS = 5000;
@@ -90,12 +91,12 @@ public class DeviceSimulator implements Runnable {
                     device.getPublishTopic());
             log.info("[{}] Simulator started", device.getName());
 
-            while (!Thread.currentThread().isInterrupted()) {
+            while (!stopRequested.get() && !Thread.currentThread().isInterrupted()) {
                 // Pause check — spin-wait with 200ms sleep
-                while (paused.get() && !Thread.currentThread().isInterrupted()) {
+                while (paused.get() && !stopRequested.get() && !Thread.currentThread().isInterrupted()) {
                     Thread.sleep(200);
                 }
-                if (Thread.currentThread().isInterrupted())
+                if (stopRequested.get() || Thread.currentThread().isInterrupted())
                     break;
 
                 // Generate telemetry
@@ -150,6 +151,17 @@ public class DeviceSimulator implements Runnable {
     public void pause() {
         paused.set(true);
         log.info("[{}] Paused", device.getName());
+    }
+
+    public void requestStop() {
+        stopRequested.set(true);
+        if (publisher != null) {
+            try {
+                publisher.disconnect();
+            } catch (Exception ex) {
+                log.warn("[{}] Error disconnecting MQTT during stop: {}", device.getName(), ex.getMessage());
+            }
+        }
     }
 
     public void resume() {

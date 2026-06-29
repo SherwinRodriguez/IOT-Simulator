@@ -50,7 +50,7 @@ public class TelemetryHistoryController {
                 String accessToken = oauthService.getValidAccessToken(user);
                 
                 // Base URL: {api-domain}/iot/v1/datapoints/data
-                String baseUrl = zohoApiConfig.getIotBaseUrl(user.getRegion()) + "/iot/v1/datapoints/data";
+                String baseUrl = zohoApiConfig.getIotApiBaseUrl(user) + "/iot/v1/datapoints/data";
                 
                 if ("custom".equals(period) && startTime != null && endTime != null) {
                     HttpHeaders headers = new HttpHeaders();

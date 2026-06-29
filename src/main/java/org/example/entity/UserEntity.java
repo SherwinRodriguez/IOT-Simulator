@@ -34,6 +34,10 @@ public class UserEntity {
     @Column(nullable = false, length = 10)
     private String region = "in";
 
+    /** Dynamic application domain returned by Zoho OAuth (e.g. https://app123.zohoiot.in) */
+    @Column(name = "app_domain")
+    private String appDomain;
+
     /** AES-256 encrypted Zoho access token */
     @Column(name = "access_token", columnDefinition = "TEXT")
     private String accessToken;

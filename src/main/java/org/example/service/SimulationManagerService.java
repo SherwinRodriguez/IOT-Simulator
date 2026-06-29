@@ -48,6 +48,7 @@ public class SimulationManagerService {
     private final ExecutorService executor = Executors.newCachedThreadPool(r -> {
         Thread t = new Thread(r);
         t.setDaemon(true);
+        t.setName("device-simulator-" + t.getId());
         return t;
     });
 
@@ -80,8 +81,21 @@ public class SimulationManagerService {
         DeviceEntity device = deviceRepository.findById(deviceId)
                 .orElseThrow(() -> new IllegalArgumentException("Device not found: " + deviceId));
 
+        if (isBlank(device.getMqttBrokerUrl())) {
+            deriveBrokerUrlFromUsername(device.getMqttUsername()).ifPresent(brokerUrl -> {
+                device.setMqttBrokerUrl(brokerUrl);
+                deviceRepository.save(device);
+                log.info("[Manager] Derived MQTT broker URL for device {} from username: {}", device.getName(), brokerUrl);
+            });
+        }
+
+        validateRegisteredForSimulation(device);
+
         // Fetch local simulation configs
         List<org.example.entity.SimulationConfigEntity> configs = simConfigRepository.findByDeviceId(deviceId);
+        if (configs.isEmpty()) {
+            throw new IllegalStateException("No datapoints are configured for this device. Open the device datapoints once or sync datapoints before starting simulation.");
+        }
 
         // Decrypt MQTT password into a local variable — do NOT write it back to the entity
         // that will be saved, otherwise the DB gets the plaintext and future decrypts fail.
@@ -109,13 +123,51 @@ public class SimulationManagerService {
                 this::persistTelemetry
         );
 
-        Future<?> future = executor.submit(simulator);
+        Future<?> future = executor.submit(() -> runSimulator(deviceId, simulator));
         activeFutures.put(deviceId, future);
         activeSimulators.put(deviceId, simulator);
 
         device.setStatus("RUNNING");
         deviceRepository.save(device);
         log.info("[Manager] Started simulation for device {}", device.getName());
+    }
+
+    private void validateRegisteredForSimulation(DeviceEntity device) {
+        List<String> missing = new ArrayList<>();
+        if (isBlank(device.getMqttClientId())) missing.add("client ID");
+        if (isBlank(device.getMqttUsername())) missing.add("username");
+        if (isBlank(device.getMqttPassword())) missing.add("device token");
+        if (isBlank(device.getPublishTopic())) missing.add("publish topic");
+        if (isBlank(device.getMqttBrokerUrl())) missing.add("broker URL");
+
+        if (!missing.isEmpty()) {
+            throw new IllegalStateException(
+                    "Device is not registered for simulation yet. Missing MQTT " + String.join(", ", missing)
+                            + ". Open the device in Zoho IoT, complete onboarding/registration, then sync again.");
+        }
+    }
+
+    private boolean isBlank(String value) {
+        return value == null || value.isBlank();
+    }
+
+    private Optional<String> deriveBrokerUrlFromUsername(String username) {
+        if (isBlank(username)) {
+            return Optional.empty();
+        }
+
+        String value = username.trim();
+        int hostStart = value.startsWith("/") ? 1 : 0;
+        int hostEnd = value.indexOf('/', hostStart);
+        if (hostEnd <= hostStart) {
+            return Optional.empty();
+        }
+
+        String host = value.substring(hostStart, hostEnd);
+        if (!host.contains(".zohoiothub.")) {
+            return Optional.empty();
+        }
+        return Optional.of("tcp://" + host + ":1883");
     }
 
     public synchronized void startTransientSimulation(DeviceEntity device, List<org.example.entity.SimulationConfigEntity> configs, String brokerUrl) {
@@ -132,7 +184,7 @@ public class SimulationManagerService {
                 null // Do not persist telemetry for transient demo devices
         );
 
-        Future<?> future = executor.submit(simulator);
+        Future<?> future = executor.submit(() -> runSimulator(device.getId(), simulator));
         activeFutures.put(device.getId(), future);
         activeSimulators.put(device.getId(), simulator);
 
@@ -143,9 +195,24 @@ public class SimulationManagerService {
 
     @Transactional
     public synchronized void stopSimulation(UUID deviceId) {
+        DeviceSimulator simulator = activeSimulators.get(deviceId);
+        if (simulator != null) {
+            simulator.requestStop();
+        }
+
         Future<?> future = activeFutures.remove(deviceId);
         if (future != null) {
-            future.cancel(true); // Interrupt the thread
+            try {
+                future.get(5, TimeUnit.SECONDS);
+            } catch (TimeoutException e) {
+                log.warn("[Manager] Timed out waiting for simulator {} to stop, interrupting it", deviceId);
+                future.cancel(true);
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+                future.cancel(true);
+            } catch (ExecutionException e) {
+                log.warn("[Manager] Simulator {} ended with error during stop: {}", deviceId, e.getMessage());
+            }
         }
         activeSimulators.remove(deviceId);
 
@@ -212,6 +279,24 @@ public class SimulationManagerService {
     }
 
     public long getActiveCount() { return activeFutures.size(); }
+
+    private void runSimulator(UUID deviceId, DeviceSimulator simulator) {
+        try {
+            simulator.run();
+        } finally {
+            activeFutures.remove(deviceId);
+            activeSimulators.remove(deviceId);
+            transactionTemplate.executeWithoutResult(status ->
+                    deviceRepository.findById(deviceId).ifPresent(device -> {
+                        if ("RUNNING".equals(device.getStatus())) {
+                            device.setStatus("STOPPED");
+                            deviceRepository.save(device);
+                        }
+                    })
+            );
+            log.info("[Manager] Simulator thread ended for device {}", deviceId);
+        }
+    }
 
     // ─── Telemetry Persistence ────────────────────────────────────────────────
 

@@ -62,7 +62,7 @@ public class DatapointController {
 
             try {
                 String token = oauthService.getValidAccessToken(user);
-                String url = zohoApiConfig.getIotBaseUrl(user.getRegion()) + "/iot/v1/datapointdefinitions?model="
+                String url = zohoApiConfig.getIotApiBaseUrl(user) + "/iot/v1/datapointdefinitions?model="
                         + device.getZohoModelId();
 
                 HttpHeaders headers = new HttpHeaders();
@@ -151,7 +151,7 @@ public class DatapointController {
                 headers.set("Authorization", "Zoho-oauthtoken " + token);
                 headers.setContentType(MediaType.APPLICATION_JSON);
 
-                String url = zohoApiConfig.getIotBaseUrl(user.getRegion()) + "/iot/v1/datapointdefinitions";
+                String url = zohoApiConfig.getIotApiBaseUrl(user) + "/iot/v1/datapointdefinitions";
 
                 ObjectNode root = objectMapper.createObjectNode();
                 ObjectNode dpDef = root.putObject("datapointdefinitions");
@@ -180,7 +180,7 @@ public class DatapointController {
                 dpDef.put("parent_type", "model");
 
                 // Dynamically fetch a valid kind ID from existing datapoints
-                String dpListUrl = zohoApiConfig.getIotBaseUrl(user.getRegion()) + "/iot/v1/datapointdefinitions?model="
+                String dpListUrl = zohoApiConfig.getIotApiBaseUrl(user) + "/iot/v1/datapointdefinitions?model="
                         + device.getZohoModelId();
                 ResponseEntity<String> dpListResp = restTemplate.exchange(dpListUrl, HttpMethod.GET,
                         new HttpEntity<>(headers), String.class);
@@ -213,7 +213,7 @@ public class DatapointController {
                     // Try fetching from kinds API
                     try {
                         // First try: query all datapointdefinitions (no model filter) to find any kind ID
-                        String allDpUrl = zohoApiConfig.getIotBaseUrl(user.getRegion()) + "/iot/v1/datapointdefinitions";
+                        String allDpUrl = zohoApiConfig.getIotApiBaseUrl(user) + "/iot/v1/datapointdefinitions";
                         ResponseEntity<String> allDpResp = restTemplate.exchange(allDpUrl, HttpMethod.GET, new HttpEntity<>(headers), String.class);
                         if (allDpResp.getBody() != null) {
                             JsonNode allRoot = objectMapper.readTree(allDpResp.getBody());
@@ -299,7 +299,7 @@ public class DatapointController {
         return deviceRepository.findByIdAndUser(deviceId, user).map(device -> {
             try {
                 String token = oauthService.getValidAccessToken(user);
-                String url = zohoApiConfig.getIotBaseUrl(user.getRegion()) + "/iot/v1/datapointdefinitions?ids=" + dpId;
+                String url = zohoApiConfig.getIotApiBaseUrl(user) + "/iot/v1/datapointdefinitions?ids=" + dpId;
 
                 HttpHeaders headers = new HttpHeaders();
                 headers.set("Authorization", "Zoho-oauthtoken " + token);

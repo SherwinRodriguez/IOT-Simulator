@@ -12,7 +12,7 @@ import java.util.UUID;
 
 @Entity
 @Table(name = "devices",
-       uniqueConstraints = @UniqueConstraint(columnNames = {"user_id", "zoho_device_id"}))
+       uniqueConstraints = @UniqueConstraint(columnNames = {"sandbox_id", "zoho_device_id"}))
 @Getter @Setter @NoArgsConstructor
 public class DeviceEntity {
 
@@ -40,6 +40,20 @@ public class DeviceEntity {
 
     @Column(name = "mqtt_client_id")
     private String mqttClientId;
+
+    // Scope devices to a specific sandbox application domain
+    @Column(name = "app_domain")
+    private String appDomain;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "sandbox_id")
+    @com.fasterxml.jackson.annotation.JsonIgnore
+    private AppConnectionEntity sandbox;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "model_id")
+    @com.fasterxml.jackson.annotation.JsonIgnore
+    private ModelEntity model;
 
     @Column(name = "mqtt_broker_url")
     private String mqttBrokerUrl;
