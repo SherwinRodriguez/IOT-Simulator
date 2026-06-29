@@ -8,6 +8,7 @@ import { useAuth } from '../context/AuthContext';
 import {
   getDevice, getDatapoints,
   startSimulation, stopSimulation, pauseSimulation, resumeSimulation,
+  registerDevice,
 } from '../api';
 
 const DeviceDetail: React.FC = () => {
@@ -18,6 +19,7 @@ const DeviceDetail: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [syncing, setSyncing] = useState(false);
   const [actionBusy, setActionBusy] = useState(false);
+  const [error, setError] = useState('');
   const [activeTab, setActiveTab] = useState('overview');
 
   const authContext = useAuth();
@@ -77,13 +79,33 @@ const DeviceDetail: React.FC = () => {
   const handleSim = async (action: 'start' | 'stop' | 'pause' | 'resume') => {
     if (!id) return;
     setActionBusy(true);
+    setError('');
     try {
-      if (action === 'start') await startSimulation(id);
+      if (action === 'start') {
+        await getDatapoints(id);
+        await startSimulation(id);
+      }
       if (action === 'stop') await stopSimulation(id);
       if (action === 'pause') await pauseSimulation(id);
       if (action === 'resume') await resumeSimulation(id);
       await load();
+    } catch (e: any) {
+      setError(e.response?.data?.error || 'Simulation action failed');
     } finally { setActionBusy(false); }
+  };
+
+  const handleRegister = async () => {
+    if (!id) return;
+    setActionBusy(true);
+    setError('');
+    try {
+      await registerDevice(id);
+      await load();
+    } catch (e: any) {
+      setError(e.response?.data?.error || 'Registration failed. Keep the Zoho onboarding screen open and try again.');
+    } finally {
+      setActionBusy(false);
+    }
   };
 
   if (loading) return (
@@ -93,6 +115,7 @@ const DeviceDetail: React.FC = () => {
 
   const isRunning = device.status === 'RUNNING';
   const isPaused = device.status === 'PAUSED';
+  const isRegistered = Boolean(device.mqttBrokerUrl && device.mqttClientId && device.mqttUsername && device.mqttPassword && device.publishTopic);
 
   let tabs = [
     { key: 'overview', label: 'Overview' },
@@ -144,9 +167,24 @@ const DeviceDetail: React.FC = () => {
         {/* Actions on the right side */}
         <div style={{ marginLeft: 'auto', display: 'flex', gap: 8, paddingBottom: 8 }}>
           {!isRunning && !isPaused && (
-            <button className="btn btn-success" onClick={() => handleSim('start')} disabled={actionBusy} style={{ fontSize: 12 }}>
-              <Play size={13} /> Start
-            </button>
+            isRegistered ? (
+              <button
+                className="btn btn-success"
+                onClick={() => handleSim('start')}
+                disabled={actionBusy}
+                style={{ fontSize: 12 }}>
+                <Play size={13} /> Start
+              </button>
+            ) : (
+              <button
+                className="btn btn-secondary"
+                onClick={handleRegister}
+                disabled={actionBusy}
+                title="Fetch broker, client id, token and publish topic from Zoho IoT."
+                style={{ fontSize: 12 }}>
+                <RotateCcw size={13} /> Register
+              </button>
+            )
           )}
           {isRunning && (
             <>
@@ -170,6 +208,12 @@ const DeviceDetail: React.FC = () => {
           )}
         </div>
       </div>
+
+      {error && (
+        <div className="alert alert-error" style={{ marginBottom: 16 }}>
+          {error}
+        </div>
+      )}
 
       {/* Tab Content */}
       {activeTab === 'overview' && (
@@ -205,9 +249,15 @@ const DeviceDetail: React.FC = () => {
           {/* MQTT Connection Info */}
           <div className="card" style={{ marginBottom: 24 }}>
             <h2 style={{ fontWeight: 600, marginBottom: 16, fontSize: 15 }}>MQTT Connection</h2>
+            {!isRegistered && (
+              <div className="alert" style={{ borderColor: '#93c5fd', background: '#eff6ff', color: '#1d4ed8', marginBottom: 16 }}>
+                Keep this device's Zoho onboarding screen open on the Connect step, then click Register. The app will connect to Zoho IoT with this device's MQTT credentials and refresh the device after registration.
+              </div>
+            )}
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(220px, 1fr))', gap: 16 }}>
               {[
                 ['Client ID', device.mqttClientId],
+                ['Broker URL', device.mqttBrokerUrl],
                 ['Username', device.mqttUsername],
                 ['Publish Topic', device.publishTopic],
                 ['Zoho Device ID', device.zohoDeviceId],

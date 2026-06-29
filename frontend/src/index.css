@@ -488,6 +488,7 @@ label {
   margin-right: 6px;
 }
 .conn-dot-connected { background: var(--accent-green); }
+.conn-dot-registered { background: var(--accent-blue); }
 .conn-dot-disconnected { background: var(--accent-red); }
 
 /* ── Alert Banner ──────────────────────────────────────────────────── */

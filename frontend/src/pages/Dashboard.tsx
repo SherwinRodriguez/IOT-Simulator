@@ -11,20 +11,36 @@ interface Stats {
   stoppedDevices: number;
 }
 
+const deviceTimestamp = (device: any) => {
+  const value = device.createdAt || device.lastSyncedAt;
+  const time = value ? new Date(value).getTime() : 0;
+  return Number.isNaN(time) ? 0 : time;
+};
+
+const newestDevices = (devices: any[]) =>
+  [...devices]
+    .sort((a, b) => deviceTimestamp(b) - deviceTimestamp(a))
+    .slice(0, 5);
+
 const Dashboard: React.FC = () => {
   const { user } = useAuth();
   const [stats, setStats] = useState<Stats | null>(null);
   const [recentDevices, setRecentDevices] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
+  const fetchDashboard = () => {
+    setLoading(true);
     Promise.all([getDeviceStats(), getDevices()])
       .then(([statsRes, devicesRes]) => {
         setStats(statsRes.data);
-        setRecentDevices(devicesRes.data.slice(0, 5));
+        setRecentDevices(newestDevices(devicesRes.data));
       })
       .catch(console.error)
       .finally(() => setLoading(false));
+  };
+
+  useEffect(() => {
+    fetchDashboard();
   }, []);
 
   const statCards = [
@@ -67,7 +83,7 @@ const Dashboard: React.FC = () => {
               Zoho IoT Simulator Console · {user?.region?.toUpperCase()} Region
             </p>
           </div>
-          <button className="btn btn-secondary" onClick={() => window.location.reload()}>
+          <button className="btn btn-secondary" onClick={fetchDashboard}>
             <RefreshCw size={14} />
             Refresh
           </button>

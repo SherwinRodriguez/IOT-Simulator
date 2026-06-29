@@ -23,15 +23,25 @@ api.interceptors.response.use(
 
 // ─── Auth ──────────────────────────────────────────────────────────────────
 export const getLoginUrl    = (region = 'in') => api.get(`/oauth/login?region=${region}`);
-export const getCurrentUser = ()              => api.get('/oauth/me');
-export const logout         = ()              => api.post('/oauth/logout');
-export const startDemoMode  = (config: any)   => api.post('/api/auth/demo', config);
+export const getCurrentUser = () => api.get('/oauth/me');
+export const logout         = () => api.post('/oauth/logout');
+export const startDemoMode  = (config: any) => api.post('/api/auth/demo', config);
+
+// ─── App Connections ───────────────────────────────────────────────────────
+export const getConnections    = ()                                       => api.get('/api/connections');
+export const discoverConnections = ()                                     => api.post('/api/connections/discover');
+export const addConnection     = (data: { appDomain: string; appName?: string }) => api.post('/api/connections', data);
+export const activateConnection= (id: string)                             => api.put(`/api/connections/${id}/activate`);
+export const removeConnection  = (id: string)                             => api.delete(`/api/connections/${id}`);
 
 // ─── Devices ───────────────────────────────────────────────────────────────
 export const getDevices      = ()                 => api.get('/api/devices');
+export const getModels       = ()                 => api.get('/api/devices/models');
 export const getDevice       = (id: string)       => api.get(`/api/devices/${id}`);
+export const createDevice    = (data: { name: string, description?: string, model_id?: string }) => api.post('/api/devices', data);
 export const deleteDevice    = (id: string)       => api.delete(`/api/devices/${id}`);
 export const syncDevices     = ()                 => api.post('/api/devices/sync');
+export const registerDevice  = (id: string)       => api.post(`/api/devices/${id}/register`);
 export const getDeviceStats  = ()                 => api.get('/api/devices/stats');
 
 // ─── Simulation ────────────────────────────────────────────────────────────

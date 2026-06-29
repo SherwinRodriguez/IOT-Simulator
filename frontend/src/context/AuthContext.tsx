@@ -6,6 +6,7 @@ interface User {
   email: string;
   displayName: string;
   region: string;
+  appDomain?: string;
   zohoUserId: string;
 }
 

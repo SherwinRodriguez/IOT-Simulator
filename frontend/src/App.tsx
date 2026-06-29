@@ -13,8 +13,9 @@ import SimulatorConfig from './pages/SimulatorConfig';
 import LiveGraph from './pages/TelemetryView';
 import HistoricalGraph from './pages/HistoricalGraph';
 import Settings from './pages/Settings';
+import SelectApplication from './pages/SelectApplication';
 import DemoDashboard from './pages/DemoDashboard';
-import { Wifi, ChevronRight, Search, HelpCircle, Settings as SettingsIcon } from 'lucide-react';
+import { Wifi, ChevronRight, HelpCircle, Settings as SettingsIcon } from 'lucide-react';
 import './index.css';
 
 const TopBar: React.FC = () => {
@@ -72,8 +73,7 @@ const TopBar: React.FC = () => {
       </div>
 
       {/* Right side actions */}
-      <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 16 }}>
-        <Search size={18} color="var(--text-muted)" style={{ cursor: 'pointer' }} />
+      <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 12 }}>
         <SettingsIcon size={18} color="var(--text-muted)" style={{ cursor: 'pointer' }} />
         <HelpCircle size={18} color="var(--text-muted)" style={{ cursor: 'pointer' }} />
       </div>
@@ -97,13 +97,14 @@ function App() {
       <AuthProvider>
         <WebSocketProvider>
           <Routes>
-            {/* Public */}
+            {/* Public routes */}
             <Route path="/login"          element={<Login />} />
             <Route path="/oauth/callback" element={<OAuthCallback />} />
             <Route path="/demo"           element={<DemoDashboard />} />
 
             {/* Protected */}
             <Route element={<ProtectedRoute />}>
+              <Route path="/select-app" element={<SelectApplication />} />
               <Route path="/" element={<AppLayout><Dashboard /></AppLayout>} />
               <Route path="/devices" element={<AppLayout><DeviceManager /></AppLayout>} />
               <Route path="/devices/:id" element={<AppLayout><DeviceDetail /></AppLayout>} />
