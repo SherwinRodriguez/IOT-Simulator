@@ -46,6 +46,6 @@ build/
 ### Docker & App Data ###
 data/
 *.log
-zoho*
+/zoho*
 json_response.txt
 *-tcp*
